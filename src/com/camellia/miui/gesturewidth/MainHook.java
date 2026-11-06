@@ -215,9 +215,36 @@ public class MainHook implements IXposedHookLoadPackage {
                         new NavStubHook.NavTouchHook());
             } catch (Throwable t) { Log.w(TAG, "Hook onTouchEvent failed: " + t.getMessage()); }
 
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "onPointerEvent", MotionEvent.class,
+                        new NavStubHook.NavPointerEventHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook onPointerEvent failed: " + t.getMessage()); }
+
             Log.i(TAG, "Successfully installed bottom gesture & hold duration hooks on NavStubView");
         } catch (Throwable t) {
             Log.e(TAG, "Error installing hooks on NavStubView: ", t);
+        }
+
+        // --- Horizontal Recents Overscroll Clamping Hooks ---
+        try {
+            Class<?> scrollerClass = XposedHelpers.findClass("com.miui.home.recents.views.TaskStackViewScroller", lpparam.classLoader);
+            XposedHelpers.findAndHookMethod(scrollerClass, "setStackScrollP", float.class,
+                    new NavStubHook.SetStackScrollPHook());
+
+            Class<?> horizScrollerClass = XposedHelpers.findClass("com.miui.home.recents.views.TaskStackViewHorizontalScroller", lpparam.classLoader);
+            XposedHelpers.findAndHookMethod(horizScrollerClass, "adjustEndScrollPix", float.class,
+                    new NavStubHook.AdjustEndScrollPixHook());
+
+            XposedHelpers.findAndHookMethod(horizScrollerClass, "animateBoundScroll", int.class,
+                    new NavStubHook.AnimateBoundScrollHook());
+
+            Class<?> algoHorizClass = XposedHelpers.findClass("com.miui.home.recents.views.TaskStackViewsAlgorithmHorizontal", lpparam.classLoader);
+            XposedHelpers.findAndHookMethod(algoHorizClass, "afterFrictionValue", float.class, float.class,
+                    new NavStubHook.AfterFrictionValueHook());
+
+            Log.i(TAG, "Successfully installed horizontal Recents overscroll clamping hooks");
+        } catch (Throwable t) {
+            Log.e(TAG, "Error installing horizontal Recents overscroll clamping hooks: ", t);
         }
     }
 }

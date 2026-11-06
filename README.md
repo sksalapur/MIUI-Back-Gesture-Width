@@ -1,4 +1,4 @@
-# MIUI Gesture Width & Custom Launcher Enhancer (v2.1)
+# MIUI Gesture Width & Custom Launcher Enhancer (v2.2)
 
 A lightweight LSPosed / Xposed module for MIUI and HyperOS Launcher (`com.miui.home`) that enables full-screen navigation gestures on 3rd-party launchers, hides the 3-button navigation bar, and unlocks comprehensive, real-time customization of both **Bottom Gestures (Home & Recents)** and **Side Back Gestures**.
 
@@ -8,6 +8,20 @@ Stock MIUI / HyperOS imposes severe limitations on gesture navigation:
 3. **Excessive Distance & Sluggish Pacing:** Both side back gestures and bottom home/recents gestures hardcode large swipe distance requirements and high velocity thresholds, causing missed gestures and unresponsive navigation.
 
 This module resolves all of these issues while maintaining **100% native MIUI gesture rendering and fluid spring animations** via `NavStubView` and `GestureStubView`.
+
+---
+
+## What's New in Version 2.2
+
+- ⏱️ **Instant & Exact Hold Duration Timer via MainLooper Handler:**
+  - Resolved the digitizer idle issue where holding stationary on the screen caused touch events to pause, making a 100ms hold take 1.5–2 seconds.
+  - Sits on the main looper with a `postDelayed` timer as soon as minimum upward travel (`Math.min(targetDist, 35px)`) is detected.
+  - Triggers immediately at the exact configured millisecond (down to 100ms) with instant MIUI native haptic feedback (`performEnterRecent`), guaranteeing rapid Recents activation without false home triggers.
+
+- 🛡️ **Horizontal Recents Overscroll Clamping:**
+  - Overcomes MIUI horizontal Recents bug where flinging or swiping left past the last task card causes cards to slide completely off the screen and unbind, leaving bare wallpaper.
+  - Hooks `TaskStackViewScroller.setStackScrollP`, `TaskStackViewHorizontalScroller.adjustEndScrollPix`, `TaskStackViewHorizontalScroller.animateBoundScroll`, and `TaskStackViewsAlgorithmHorizontal.afterFrictionValue`.
+  - Strictly clamps overscroll delta to `[-0.15f, 0.15f]` and animates bounds cleanly so recent task cards stay locked on screen.
 
 ---
 

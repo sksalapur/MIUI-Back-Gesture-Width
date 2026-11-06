@@ -5,7 +5,9 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.PointF;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.HapticFeedbackConstants;
@@ -30,10 +32,27 @@ public class NavStubHook {
     private static float sTouchStartX = 0f;
     private static float sTouchStartY = 0f;
     private static long sTouchStartTime = 0;
-    private static long sHoldStartTime = 0;
     private static boolean sHoldTriggered = false;
     private static boolean sIsHoldingRecents = false;
     private static long sJustTriggeredRecentsTime = 0;
+
+    // Hold timer handler and state
+    private static final Handler sHoldHandler = new Handler(Looper.getMainLooper());
+    private static volatile Object sCurrentNavStub = null;
+    private static volatile boolean sTouchActive = false;
+    private static volatile boolean sHoldScheduled = false;
+    private static long sLastProcessedEventTime = 0;
+
+    private static final Runnable sHoldRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!sTouchActive) return;
+            sHoldTriggered = true;
+            sIsHoldingRecents = true;
+            Log.i(TAG, ">>> Hold duration timer fired! Recents hold armed with haptics! <<<");
+            performHoldHaptic(sCurrentNavStub);
+        }
+    };
 
     // Retained reference to MIUI's OverviewCommandHelper
     public static volatile Object sOverviewCommandHelper = null;
@@ -126,9 +145,11 @@ public class NavStubHook {
         }
 
         // 4. Reset hold state immediately
+        sHoldHandler.removeCallbacks(sHoldRunnable);
+        sTouchActive = false;
+        sHoldScheduled = false;
         sHoldTriggered = false;
         sIsHoldingRecents = false;
-        sHoldStartTime = 0;
     }
 
     /**
@@ -399,76 +420,130 @@ public class NavStubHook {
     }
 
     // --- 4. Touch Event & Hold Detection Hooks ---
+    public static void processNavTouchEvent(Object navStub, MotionEvent ev) {
+        if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+        if (ev == null) return;
+
+        int action = ev.getActionMasked();
+        long eventTime = ev.getEventTime();
+        if (action == MotionEvent.ACTION_MOVE && eventTime == sLastProcessedEventTime) {
+            return;
+        }
+        sLastProcessedEventTime = eventTime;
+
+        // Check if Recents overview is currently active in foreground
+        boolean isRecentsActive = false;
+        try {
+            ClassLoader cl = navStub.getClass().getClassLoader();
+            Class<?> trackerClass = XposedHelpers.findClass("com.miui.home.recents.RecentsActivityTracker", cl);
+            Object activity = XposedHelpers.callStaticMethod(trackerClass, "getCurrentActivity");
+            if (activity != null) {
+                boolean isFinishing = (boolean) XposedHelpers.callMethod(activity, "isFinishing");
+                boolean isDestroyed = (boolean) XposedHelpers.callMethod(activity, "isDestroyed");
+                isRecentsActive = !isFinishing && !isDestroyed;
+            }
+        } catch (Throwable ignored) {}
+
+        if (action == MotionEvent.ACTION_DOWN) {
+            sTouchStartX = ev.getRawX();
+            sTouchStartY = ev.getRawY();
+            sTouchStartTime = SystemClock.uptimeMillis();
+            sTouchActive = true;
+            sHoldScheduled = false;
+            sHoldTriggered = false;
+            sIsHoldingRecents = false;
+            sCurrentNavStub = navStub;
+            sHoldHandler.removeCallbacks(sHoldRunnable);
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            if (isRecentsActive) {
+                return;
+            }
+
+            float dy = sTouchStartY - ev.getRawY();
+            int targetDist = GestureWidthSettings.getDesiredBottomDistance();
+            int targetHold = GestureWidthSettings.getDesiredBottomHold();
+            float targetSpeed = GestureWidthSettings.getDesiredBottomSpeed();
+
+            PointF vel = null;
+            try {
+                vel = (PointF) XposedHelpers.getObjectField(navStub, "mVelocityPxPerMs");
+            } catch (Throwable ignored) {}
+            float speed = (vel != null) ? (float) Math.hypot(vel.x, vel.y) : 0f;
+
+            // Schedule hold timer as soon as user pulls upward slightly (min(targetDist, 35px))
+            if (dy >= Math.min(targetDist, 35.0f)) {
+                if (!sHoldScheduled && !sHoldTriggered) {
+                    sHoldScheduled = true;
+                    sHoldHandler.postDelayed(sHoldRunnable, Math.max(targetHold, 40));
+                    Log.d(TAG, "Scheduled Recents hold timer for " + targetHold + "ms (dy=" + dy + ")");
+                }
+            }
+
+            // If user drags back down to bottom, cancel pending or armed hold
+            if (dy < 15.0f && (sHoldScheduled || sHoldTriggered)) {
+                sHoldHandler.removeCallbacks(sHoldRunnable);
+                sHoldScheduled = false;
+                sHoldTriggered = false;
+                sIsHoldingRecents = false;
+                Log.d(TAG, "User dragged back down, hold cancelled");
+            }
+
+            // If user performs an obvious fast upward flick (Home flick), cancel pending hold timer
+            if (speed >= (targetSpeed * 1.5f + 1.0f) && dy > 80.0f && !sHoldTriggered) {
+                sHoldHandler.removeCallbacks(sHoldRunnable);
+                sHoldScheduled = false;
+            }
+        } else if (action == MotionEvent.ACTION_UP) {
+            sHoldHandler.removeCallbacks(sHoldRunnable);
+            sTouchActive = false;
+            sHoldScheduled = false;
+
+            if (isRecentsActive) {
+                float dy = sTouchStartY - ev.getRawY();
+                if (dy >= 30.0f) {
+                    Log.i(TAG, "Swipe up inside Recents detected (dy=" + dy + ")! Dismissing to Home.");
+                    dismissRecentsIfActive(navStub);
+                }
+                return;
+            }
+
+            if (sHoldTriggered || sIsHoldingRecents) {
+                Log.i(TAG, "ACTION_UP with Recents hold armed! Triggering Recents smoothly.");
+                Context ctx = (navStub instanceof View) ? ((View) navStub).getContext() : null;
+                showRecentsSmoothly(navStub, ctx);
+            }
+
+            sHoldTriggered = false;
+            sIsHoldingRecents = false;
+        } else if (action == MotionEvent.ACTION_CANCEL) {
+            sHoldHandler.removeCallbacks(sHoldRunnable);
+            sTouchActive = false;
+            sHoldScheduled = false;
+            sHoldTriggered = false;
+            sIsHoldingRecents = false;
+        }
+    }
+
     public static class NavTouchHook extends XC_MethodHook {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             try {
-                if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
                 if (param.args == null || param.args.length == 0 || !(param.args[0] instanceof MotionEvent)) return;
-
-                MotionEvent ev = (MotionEvent) param.args[0];
-                int action = ev.getActionMasked();
-
-                if (action == MotionEvent.ACTION_DOWN) {
-                    sTouchStartX = ev.getRawX();
-                    sTouchStartY = ev.getRawY();
-                    sTouchStartTime = SystemClock.uptimeMillis();
-                    sHoldStartTime = 0;
-                    sHoldTriggered = false;
-                    sIsHoldingRecents = false;
-                } else if (action == MotionEvent.ACTION_MOVE) {
-                    float dy = sTouchStartY - ev.getRawY(); // Upward travel distance
-                    int targetDist = GestureWidthSettings.getDesiredBottomDistance();
-                    int targetHold = GestureWidthSettings.getDesiredBottomHold();
-                    float targetSpeed = GestureWidthSettings.getDesiredBottomSpeed();
-
-                    PointF vel = (PointF) XposedHelpers.getObjectField(param.thisObject, "mVelocityPxPerMs");
-                    float speed = (vel != null) ? (float) Math.hypot(vel.x, vel.y) : 0f;
-
-                    // Drag upward threshold reached (at least min(targetDist, 50px))
-                    if (dy >= Math.min(targetDist, 50.0f)) {
-                        // User has slowed down or paused finger movement
-                        if (speed < (targetSpeed * 0.4f + 0.8f)) {
-                            long now = SystemClock.uptimeMillis();
-                            if (sHoldStartTime == 0) {
-                                sHoldStartTime = now;
-                            } else if (now - sHoldStartTime >= targetHold) {
-                                if (!sHoldTriggered) {
-                                    sHoldTriggered = true;
-                                    sIsHoldingRecents = true;
-                                    performHoldHaptic(param.thisObject);
-                                    Log.i(TAG, "Hold duration reached (" + (now - sHoldStartTime) + "ms >= " + targetHold + "ms). Recents hold armed!");
-                                }
-                            }
-                        } else if (speed >= (targetSpeed * 0.4f + 0.8f)) {
-                            // Moving fast upward or in a flick: reset hold timer
-                            sHoldStartTime = 0;
-                        }
-                    }
-
-                    // If user slides finger all the way back down to bottom, cancel hold
-                    if (dy < 20.0f && sHoldTriggered) {
-                        sHoldTriggered = false;
-                        sIsHoldingRecents = false;
-                        sHoldStartTime = 0;
-                        Log.d(TAG, "User dragged back down, hold cancelled");
-                    }
-                } else if (action == MotionEvent.ACTION_UP) {
-                    if (sHoldTriggered || sIsHoldingRecents) {
-                        Log.i(TAG, "ACTION_UP with Recents hold armed! Triggering Recents smoothly.");
-                        Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
-                        showRecentsSmoothly(param.thisObject, ctx);
-                    }
-                    sHoldTriggered = false;
-                    sIsHoldingRecents = false;
-                    sHoldStartTime = 0;
-                } else if (action == MotionEvent.ACTION_CANCEL) {
-                    sHoldTriggered = false;
-                    sIsHoldingRecents = false;
-                    sHoldStartTime = 0;
-                }
+                processNavTouchEvent(param.thisObject, (MotionEvent) param.args[0]);
             } catch (Throwable t) {
                 Log.e(TAG, "Error in NavTouchHook: ", t);
+            }
+        }
+    }
+
+    public static class NavPointerEventHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                if (param.args == null || param.args.length == 0 || !(param.args[0] instanceof MotionEvent)) return;
+                processNavTouchEvent(param.thisObject, (MotionEvent) param.args[0]);
+            } catch (Throwable t) {
+                Log.e(TAG, "Error in NavPointerEventHook: ", t);
             }
         }
     }
@@ -671,6 +746,115 @@ public class NavStubHook {
             if (GestureWidthSettings.isCustomLauncherGesturesEnabled() && (sHoldTriggered || sIsHoldingRecents)) {
                 param.setResult(true);
             }
+        }
+    }
+
+    // --- 10. Recents Horizontal Overscroll Clamping Hooks ---
+    public static class SetStackScrollPHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                Object scroller = param.thisObject;
+                Object layoutAlgo = XposedHelpers.getObjectField(scroller, "mLayoutAlgorithm");
+                if (layoutAlgo == null) return;
+
+                String algoName = layoutAlgo.getClass().getSimpleName();
+                if (algoName.contains("Horizontal")) {
+                    float minP = XposedHelpers.getFloatField(layoutAlgo, "mMinScrollP");
+                    float maxP = XposedHelpers.getFloatField(layoutAlgo, "mMaxScrollP");
+                    if (minP > maxP) {
+                        float tmp = minP; minP = maxP; maxP = tmp;
+                    }
+                    float scrollP = (Float) param.args[0];
+                    // Maximum overscroll beyond task boundaries is strictly clamped to 0.15f
+                    // This prevents task cards from flying off to the right leaving only wallpaper!
+                    float maxAllowed = maxP + 0.15f;
+                    float minAllowed = minP - 0.15f;
+                    if (scrollP > maxAllowed) {
+                        param.args[0] = maxAllowed;
+                        Log.d(TAG, "Clamped horizontal scrollP from " + scrollP + " to maxAllowed=" + maxAllowed);
+                    } else if (scrollP < minAllowed) {
+                        param.args[0] = minAllowed;
+                        Log.d(TAG, "Clamped horizontal scrollP from " + scrollP + " to minAllowed=" + minAllowed);
+                    }
+                }
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
+    }
+
+    public static class AdjustEndScrollPixHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                Object scroller = param.thisObject;
+                Object layoutAlgo = XposedHelpers.getObjectField(scroller, "mLayoutAlgorithm");
+                if (layoutAlgo == null) return;
+
+                float minP = XposedHelpers.getFloatField(layoutAlgo, "mMinScrollP");
+                float maxP = XposedHelpers.getFloatField(layoutAlgo, "mMaxScrollP");
+                if (minP > maxP) {
+                    float tmp = minP; minP = maxP; maxP = tmp;
+                }
+                float flingDownScrollP = XposedHelpers.getFloatField(scroller, "mFlingDownScrollP");
+                float flingDownX = XposedHelpers.getFloatField(scroller, "mFlingDownX");
+
+                float resultPix = (Float) param.getResult();
+                float deltaP = (Float) XposedHelpers.callMethod(layoutAlgo, "getDeltaPForX", flingDownX, resultPix);
+                float targetScrollP = flingDownScrollP + deltaP;
+
+                if (targetScrollP > maxP || targetScrollP < minP) {
+                    float clampedTarget = Math.max(minP, Math.min(targetScrollP, maxP));
+                    float nearest = (Float) XposedHelpers.callMethod(scroller, "getNearestMotionlessScrollP", clampedTarget);
+                    nearest = Math.max(minP, Math.min(nearest, maxP));
+                    int deltaX = (Integer) XposedHelpers.callMethod(layoutAlgo, "getXForDeltaP", flingDownScrollP, nearest);
+                    param.setResult(flingDownX + (float) deltaX);
+                    Log.d(TAG, "AdjustEndScrollPixHook: clamped targetScrollP " + targetScrollP + " -> " + nearest);
+                }
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
+    }
+
+    public static class AnimateBoundScrollHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                Object scroller = param.thisObject;
+                Object layoutAlgo = XposedHelpers.getObjectField(scroller, "mLayoutAlgorithm");
+                if (layoutAlgo == null) return;
+
+                float minP = XposedHelpers.getFloatField(layoutAlgo, "mMinScrollP");
+                float maxP = XposedHelpers.getFloatField(layoutAlgo, "mMaxScrollP");
+                if (minP > maxP) {
+                    float tmp = minP; minP = maxP; maxP = tmp;
+                }
+                float currentScroll = (Float) XposedHelpers.callMethod(scroller, "getStackScroll");
+                float bounded = Math.max(minP, Math.min(currentScroll, maxP));
+                if (Float.compare(currentScroll, bounded) != 0) {
+                    // Smoothly animate back to within bounds
+                    XposedHelpers.callMethod(scroller, "animateScroll", bounded, 250, (Runnable) null);
+                    param.setResult(null);
+                }
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
+    }
+
+    public static class AfterFrictionValueHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                float result = (Float) param.getResult();
+                if (result > 0.15f) {
+                    param.setResult(0.15f);
+                } else if (result < -0.15f) {
+                    param.setResult(-0.15f);
+                }
+            } catch (Throwable ignored) {}
         }
     }
 }

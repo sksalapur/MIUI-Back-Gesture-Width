@@ -82,21 +82,17 @@ cmd_javac = [
 subprocess.check_call(cmd_javac)
 
 # Step 3: Run D8
-print("--- Running D8 dexer ---")
-d8_classes = []
-for root, _, files in os.walk(classes_dir):
-    for f in files:
-        if f.endswith(".class"):
-            d8_classes.append(os.path.join(root, f))
-
-print(f"Dexing {len(d8_classes)} class files...")
+print("--- Packaging classes to JAR and running D8 dexer ---")
+app_classes_jar = os.path.join(bin_dir, "app-classes.jar")
+subprocess.check_call(["jar", "cf", app_classes_jar, "-C", classes_dir, "."])
 cmd_d8 = [
     D8,
     "--output", bin_dir,
     "--lib", ANDROID_JAR,
     "--classpath", stubs_jar,
-    "--min-api", "26"
-] + d8_classes
+    "--min-api", "26",
+    app_classes_jar
+]
 subprocess.check_call(cmd_d8, shell=True)
 
 # Step 4: Package base APK with AAPT
