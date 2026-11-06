@@ -35,6 +35,9 @@ public class NavStubHook {
     private static boolean sIsHoldingRecents = false;
     private static long sJustTriggeredRecentsTime = 0;
 
+    // Retained reference to MIUI's OverviewCommandHelper
+    public static volatile Object sOverviewCommandHelper = null;
+
     /**
      * Checks if a third-party launcher (like DAP launcher) is active as default.
      */
@@ -61,31 +64,48 @@ public class NavStubHook {
     }
 
     /**
-     * Triggers the Recents overview action via system key injection and status bar IPC.
+     * Triggers the Recents overview action smoothly without raw key injection race conditions.
      */
-    public static void triggerRecents(Object navStubObj, Context context) {
+    public static void showRecentsSmoothly(Object navStubObj, Context context) {
         long now = SystemClock.uptimeMillis();
-        if (now - sJustTriggeredRecentsTime < 500) {
-            Log.d(TAG, "triggerRecents debounced (already triggered " + (now - sJustTriggeredRecentsTime) + "ms ago)");
+        if (now - sJustTriggeredRecentsTime < 400) {
+            Log.d(TAG, "showRecentsSmoothly debounced (already triggered " + (now - sJustTriggeredRecentsTime) + "ms ago)");
             return;
         }
         sJustTriggeredRecentsTime = now;
-        Log.i(TAG, ">>> Triggering Recents gesture action! <<<");
+        Log.i(TAG, ">>> showRecentsSmoothly: launching Recents overview! <<<");
 
-        boolean injected = false;
+        // 1. Tell NavStubView / RecentsAnimation to finish cleanly to Recents
+        // This transfers the window surface without freezing or leaving background artifacts!
         if (navStubObj != null) {
             try {
-                XposedHelpers.callMethod(navStubObj, "sendEvent", 0, 0, KeyEvent.KEYCODE_APP_SWITCH);
-                XposedHelpers.callMethod(navStubObj, "sendEvent", 1, 0, KeyEvent.KEYCODE_APP_SWITCH);
-                injected = true;
-                Log.i(TAG, "Recents injected via NavStubView.sendEvent(KEYCODE_APP_SWITCH)");
+                XposedHelpers.callMethod(navStubObj, "finish", true, (Runnable) null, false);
+                Log.d(TAG, "Called navStub.finish(true, null, false)");
             } catch (Throwable t) {
-                Log.w(TAG, "NavStubView.sendEvent failed: " + t.getMessage());
+                try {
+                    XposedHelpers.callMethod(navStubObj, "finish", true, (Runnable) null);
+                } catch (Throwable ignored) {}
+            }
+
+            try {
+                XposedHelpers.callMethod(navStubObj, "finalization", "toRecents");
+            } catch (Throwable ignored) {}
+        }
+
+        // 2. Open RecentsActivity via OverviewCommandHelper (native MIUI animation provider)
+        boolean launched = false;
+        if (sOverviewCommandHelper != null) {
+            try {
+                XposedHelpers.callMethod(sOverviewCommandHelper, "onOverviewShown", true);
+                launched = true;
+                Log.i(TAG, "Recents launched smoothly via OverviewCommandHelper.onOverviewShown(true)");
+            } catch (Throwable t) {
+                Log.w(TAG, "OverviewCommandHelper.onOverviewShown failed: " + t.getMessage());
             }
         }
 
-        // Backup method: call IStatusBarService.toggleRecentApps
-        if (!injected && context != null) {
+        // 3. Fallback: IStatusBarService.toggleRecentApps IPC (clean system call, no hardware key clash)
+        if (!launched && context != null) {
             try {
                 Class<?> smClass = Class.forName("android.os.ServiceManager");
                 Method getService = smClass.getMethod("getService", String.class);
@@ -96,8 +116,8 @@ public class NavStubHook {
                     Object statusBarService = asInterface.invoke(null, binder);
                     if (statusBarService != null) {
                         XposedHelpers.callMethod(statusBarService, "toggleRecentApps");
-                        Log.i(TAG, "Recents toggled via IStatusBarService.toggleRecentApps");
-                        injected = true;
+                        Log.i(TAG, "Recents toggled via IStatusBarService.toggleRecentApps fallback");
+                        launched = true;
                     }
                 }
             } catch (Throwable t) {
@@ -105,10 +125,73 @@ public class NavStubHook {
             }
         }
 
-        // Reset NavStubView state so it's fresh for next touch
+        // 4. Reset hold state immediately
+        sHoldTriggered = false;
+        sIsHoldingRecents = false;
+        sHoldStartTime = 0;
+    }
+
+    /**
+     * Dismisses the Recents overview activity cleanly and returns to the home screen (DAP launcher).
+     */
+    public static void dismissRecentsIfActive(Object navStubObj) {
+        Log.i(TAG, ">>> dismissRecentsIfActive called <<<");
+        try {
+            ClassLoader cl = navStubObj.getClass().getClassLoader();
+            Class<?> trackerClass = XposedHelpers.findClass("com.miui.home.recents.RecentsActivityTracker", cl);
+            Object activity = XposedHelpers.callStaticMethod(trackerClass, "getCurrentActivity");
+            if (activity != null) {
+                Log.i(TAG, "dismissRecentsIfActive: RecentsActivity is present: " + activity);
+                boolean isFinishing = false;
+                try {
+                    isFinishing = (boolean) XposedHelpers.callMethod(activity, "isFinishing");
+                } catch (Throwable ignored) {}
+
+                if (!isFinishing) {
+                    boolean dismissed = false;
+                    try {
+                        Object container = XposedHelpers.getObjectField(activity, "recentsContainer");
+                        if (container != null) {
+                            XposedHelpers.callMethod(container, "dismissRecentsToHome", true);
+                            dismissed = true;
+                            Log.i(TAG, "Recents dismissed via recentsContainer.dismissRecentsToHome(true)");
+                        }
+                    } catch (Throwable t) {
+                        Log.w(TAG, "dismissRecentsToHome failed: " + t.getMessage());
+                    }
+
+                    if (!dismissed) {
+                        try {
+                            Object recentsView = XposedHelpers.getObjectField(activity, "recentsView");
+                            if (recentsView != null) {
+                                XposedHelpers.callMethod(recentsView, "startHome");
+                                dismissed = true;
+                                Log.i(TAG, "Recents dismissed via recentsView.startHome()");
+                            }
+                        } catch (Throwable t) {
+                            Log.w(TAG, "startHome failed: " + t.getMessage());
+                        }
+                    }
+
+                    if (!dismissed) {
+                        try {
+                            XposedHelpers.callMethod(activity, "finish");
+                            Log.i(TAG, "Recents dismissed via activity.finish()");
+                        } catch (Throwable ignored) {}
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "Error in dismissRecentsIfActive: ", t);
+        }
+
         if (navStubObj != null) {
             try {
-                XposedHelpers.callMethod(navStubObj, "finalization", "toRecents");
+                XposedHelpers.callMethod(navStubObj, "finishRecentsActivityDirectly");
+            } catch (Throwable ignored) {}
+
+            try {
+                XposedHelpers.callMethod(navStubObj, "finalization", "performRecentsToHome");
             } catch (Throwable ignored) {}
         }
     }
@@ -137,6 +220,28 @@ public class NavStubHook {
                 ((View) navStubObj).performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
             }
         } catch (Throwable ignored) {}
+    }
+
+    // --- OverviewCommandHelper capture hooks ---
+    public static class OverviewCommandHelperInitHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            sOverviewCommandHelper = param.thisObject;
+            Log.i(TAG, "Captured OverviewCommandHelper instance via constructor: " + sOverviewCommandHelper);
+        }
+    }
+
+    public static class TisInitHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                Object helper = XposedHelpers.getObjectField(param.thisObject, "mOverviewCommandHelper");
+                if (helper != null) {
+                    sOverviewCommandHelper = helper;
+                    Log.i(TAG, "Captured OverviewCommandHelper from TouchInteractionService: " + helper);
+                }
+            } catch (Throwable ignored) {}
+        }
     }
 
     public static class SetKeepHiddenHook extends XC_MethodHook {
@@ -272,6 +377,27 @@ public class NavStubHook {
         }
     }
 
+    // --- Window Mode Override for Recents Overview ---
+    public static class GetCurrentWindowModeHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+            try {
+                ClassLoader cl = param.thisObject.getClass().getClassLoader();
+                Class<?> trackerClass = XposedHelpers.findClass("com.miui.home.recents.RecentsActivityTracker", cl);
+                Object activity = XposedHelpers.callStaticMethod(trackerClass, "getCurrentActivity");
+                if (activity != null) {
+                    boolean isFinishing = (boolean) XposedHelpers.callMethod(activity, "isFinishing");
+                    boolean isDestroyed = (boolean) XposedHelpers.callMethod(activity, "isDestroyed");
+                    if (!isFinishing && !isDestroyed) {
+                        // Recents overview is currently in foreground -> Mode 3 (recent-task)
+                        param.setResult(3);
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+    }
+
     // --- 4. Touch Event & Hold Detection Hooks ---
     public static class NavTouchHook extends XC_MethodHook {
         @Override
@@ -315,7 +441,7 @@ public class NavStubHook {
                                 }
                             }
                         } else if (speed >= (targetSpeed * 0.4f + 0.8f)) {
-                            // User is moving fast upward or in a flick: reset hold start
+                            // Moving fast upward or in a flick: reset hold timer
                             sHoldStartTime = 0;
                         }
                     }
@@ -329,13 +455,13 @@ public class NavStubHook {
                     }
                 } else if (action == MotionEvent.ACTION_UP) {
                     if (sHoldTriggered || sIsHoldingRecents) {
-                        Log.i(TAG, "ACTION_UP with Recents hold armed! Triggering Recents overview.");
+                        Log.i(TAG, "ACTION_UP with Recents hold armed! Triggering Recents smoothly.");
                         Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
-                        triggerRecents(param.thisObject, ctx);
-                        sHoldTriggered = false;
-                        sIsHoldingRecents = false;
-                        sHoldStartTime = 0;
+                        showRecentsSmoothly(param.thisObject, ctx);
                     }
+                    sHoldTriggered = false;
+                    sIsHoldingRecents = false;
+                    sHoldStartTime = 0;
                 } else if (action == MotionEvent.ACTION_CANCEL) {
                     sHoldTriggered = false;
                     sIsHoldingRecents = false;
@@ -448,9 +574,9 @@ public class NavStubHook {
                 if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
                 Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
                 if (isCustomLauncherActive(ctx)) {
-                    Log.i(TAG, "performAppToRecents intercepted with custom launcher! Triggering Recents.");
-                    triggerRecents(param.thisObject, ctx);
-                    param.setResult(null); // Return immediately to prevent fallback to performAppToHome!
+                    Log.i(TAG, "performAppToRecents intercepted with custom launcher! Showing Recents smoothly.");
+                    showRecentsSmoothly(param.thisObject, ctx);
+                    param.setResult(null); // Prevent NPE on mLauncher.getRecentsView()
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "Error in PerformAppToRecentsHook: ", t);
@@ -465,8 +591,8 @@ public class NavStubHook {
                 if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
                 Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
                 if (isCustomLauncherActive(ctx)) {
-                    Log.i(TAG, "performHomeToRecents intercepted with custom launcher! Triggering Recents.");
-                    triggerRecents(param.thisObject, ctx);
+                    Log.i(TAG, "performHomeToRecents intercepted with custom launcher! Showing Recents smoothly.");
+                    showRecentsSmoothly(param.thisObject, ctx);
                     param.setResult(null);
                 }
             } catch (Throwable t) {
@@ -475,7 +601,34 @@ public class NavStubHook {
         }
     }
 
-    // --- 8. Prevent MIUI from aborting Recents when 3rd party launcher is active ---
+    // --- 8. Swipe Up in Recents Overview to Dismiss (MIUI 11 Return to Home) ---
+    public static class PerformRecentsToHomeHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+                Log.i(TAG, "performRecentsToHome intercepted! Dismissing Recents overview.");
+                dismissRecentsIfActive(param.thisObject);
+                param.setResult(null);
+            } catch (Throwable t) {
+                Log.e(TAG, "Error in PerformRecentsToHomeHook: ", t);
+            }
+        }
+    }
+
+    public static class PerformHomeToHomeHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+                dismissRecentsIfActive(param.thisObject);
+            } catch (Throwable t) {
+                Log.e(TAG, "Error in PerformHomeToHomeHook: ", t);
+            }
+        }
+    }
+
+    // --- 9. Prevent MIUI from aborting Recents when 3rd party launcher is active ---
     public static class IsRecentsLoadedHook extends XC_MethodHook {
         @Override
         protected void afterHookedMethod(MethodHookParam param) throws Throwable {

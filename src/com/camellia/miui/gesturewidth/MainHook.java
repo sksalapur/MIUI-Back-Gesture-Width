@@ -2,6 +2,7 @@ package com.camellia.miui.gesturewidth;
 
 import android.content.Context;
 import android.util.Log;
+import android.view.MotionEvent;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XposedBridge;
@@ -94,6 +95,26 @@ public class MainHook implements IXposedHookLoadPackage {
             Log.e(TAG, "Error installing custom launcher bypass hooks: ", t);
         }
 
+        // --- TouchInteractionService & OverviewCommandHelper hooks ---
+        try {
+            Class<?> tisClass = XposedHelpers.findClass("com.miui.home.recents.TouchInteractionService", lpparam.classLoader);
+            XposedHelpers.findAndHookMethod(tisClass, "initWhenUserUnlocked",
+                    new NavStubHook.TisInitHook());
+
+            try {
+                Class<?> overviewCmdHelperClass = XposedHelpers.findClass("com.miui.home.recents.OverviewCommandHelper", lpparam.classLoader);
+                Class<?> observerClass = XposedHelpers.findClass("com.miui.home.recents.OverviewComponentObserver", lpparam.classLoader);
+                XposedHelpers.findAndHookConstructor(overviewCmdHelperClass, new Object[] {
+                        Context.class, observerClass, new NavStubHook.OverviewCommandHelperInitHook()
+                });
+            } catch (Throwable t) {
+                Log.w(TAG, "Hook OverviewCommandHelper constructor failed: " + t.getMessage());
+            }
+            Log.i(TAG, "Successfully installed hooks on TouchInteractionService / OverviewCommandHelper");
+        } catch (Throwable t) {
+            Log.w(TAG, "Hook TouchInteractionService failed: " + t.getMessage());
+        }
+
         // --- Bottom Navigation Gestures (NavStubView & GestureStateMachine) ---
         try {
             Class<?> navStubViewClass = XposedHelpers.findClass("com.miui.home.recents.NavStubView", lpparam.classLoader);
@@ -132,6 +153,22 @@ public class MainHook implements IXposedHookLoadPackage {
                 XposedHelpers.findAndHookMethod(navStubViewClass, "finishAppToHome", boolean.class,
                         new NavStubHook.FinishAppToHomeHook());
             } catch (Throwable t) { Log.w(TAG, "Hook finishAppToHome failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "getCurrentWindowMode",
+                        MotionEvent.class, boolean.class, boolean.class, boolean.class,
+                        new NavStubHook.GetCurrentWindowModeHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook getCurrentWindowMode failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "performRecentsToHome",
+                        new NavStubHook.PerformRecentsToHomeHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook performRecentsToHome failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "performHomeToHome",
+                        new NavStubHook.PerformHomeToHomeHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook performHomeToHome failed: " + t.getMessage()); }
 
             try {
                 XposedHelpers.findAndHookMethod(navStubViewClass, "isToAppHoldState",
@@ -174,7 +211,7 @@ public class MainHook implements IXposedHookLoadPackage {
             } catch (Throwable t) { Log.w(TAG, "Hook performHomeToRecents failed: " + t.getMessage()); }
 
             try {
-                XposedHelpers.findAndHookMethod(navStubViewClass, "onTouchEvent", android.view.MotionEvent.class,
+                XposedHelpers.findAndHookMethod(navStubViewClass, "onTouchEvent", MotionEvent.class,
                         new NavStubHook.NavTouchHook());
             } catch (Throwable t) { Log.w(TAG, "Hook onTouchEvent failed: " + t.getMessage()); }
 

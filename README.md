@@ -1,4 +1,4 @@
-# MIUI Gesture Width & Custom Launcher Enhancer (v2.0)
+# MIUI Gesture Width & Custom Launcher Enhancer (v2.1)
 
 A lightweight LSPosed / Xposed module for MIUI and HyperOS Launcher (`com.miui.home`) that enables full-screen navigation gestures on 3rd-party launchers, hides the 3-button navigation bar, and unlocks comprehensive, real-time customization of both **Bottom Gestures (Home & Recents)** and **Side Back Gestures**.
 
@@ -8,6 +8,19 @@ Stock MIUI / HyperOS imposes severe limitations on gesture navigation:
 3. **Excessive Distance & Sluggish Pacing:** Both side back gestures and bottom home/recents gestures hardcode large swipe distance requirements and high velocity thresholds, causing missed gestures and unresponsive navigation.
 
 This module resolves all of these issues while maintaining **100% native MIUI gesture rendering and fluid spring animations** via `NavStubView` and `GestureStubView`.
+
+---
+
+## What's New in Version 2.1
+
+- 🔄 **Swipe Up in Recents Overview to Dismiss (MIUI 11 Return to Home):**
+  - Restores the beloved MIUI 11 gesture behavior: swiping up from the bottom edge while viewing the Recents overview dismisses all recent tasks and returns directly to your custom home launcher.
+  - Eliminates the frustration of having to hunt for empty screen space beside task cards to exit Recents.
+  - Handled via `RecentsContainer.dismissRecentsToHome(true)`, `RecentsActivityTracker`, and `NavStubView.finishRecentsActivityDirectly()`.
+
+- ✨ **Ultra-Smooth In-App Swipe-to-Recents Transition:**
+  - Completely eliminates choppy freezes and wallpaper flickering when sliding up and holding from inside an app.
+  - Handled directly through MIUI's native `OverviewCommandHelper.onOverviewShown(true)` and `IStatusBarService.toggleRecentApps()` IPC, cleanly completing the `RecentsAnimationController` surface lifecycle without hardware key collisions.
 
 ---
 
