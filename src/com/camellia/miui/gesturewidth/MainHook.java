@@ -51,7 +51,15 @@ public class MainHook implements IXposedHookLoadPackage {
             Class<?> gesturesBackControllerClass = XposedHelpers.findClass("com.miui.home.recents.GesturesBackController", lpparam.classLoader);
 
             XposedHelpers.findAndHookMethod(gesturesBackControllerClass, "setGestureEdgeWidth", int.class, int.class,
-                    new GesturesBackControllerHook());
+                    new GesturesBackControllerHook.SetGestureEdgeWidthHook());
+
+            Class<?> gestureStubViewClass = XposedHelpers.findClass("com.miui.home.recents.GestureStubView", lpparam.classLoader);
+            XposedHelpers.findAndHookMethod(gesturesBackControllerClass, "processPointerEvent",
+                    android.view.MotionEvent.class, gestureStubViewClass,
+                    new GesturesBackControllerHook.ProcessPointerEventHook());
+
+            XposedHelpers.findAndHookMethod(gesturesBackControllerClass, "isFinished", float.class, int.class,
+                    new GesturesBackControllerHook.IsFinishedHook());
 
             Log.i(TAG, "Successfully installed hooks on GesturesBackController");
         } catch (Throwable t) {

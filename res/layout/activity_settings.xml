@@ -11,7 +11,7 @@
         android:paddingLeft="16dp"
         android:paddingRight="16dp"
         android:paddingTop="20dp"
-        android:paddingBottom="24dp">
+        android:paddingBottom="28dp">
 
         <!-- Title & Subtitle -->
         <TextView
@@ -30,41 +30,7 @@
             android:textSize="14sp"
             android:textColor="#888888" />
 
-        <!-- Permission Warning Banner -->
-        <LinearLayout
-            android:id="@+id/layout_perm_warning"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="14dp"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="System Write Permission Needed"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="#FF3B30" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="10dp"
-                android:text="Permission to write system settings is required to update gesture width live."
-                android:textSize="13sp" />
-
-            <Button
-                android:id="@+id/btn_grant_perm"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Grant Permission" />
-        </LinearLayout>
-
-        <!-- Main Gesture Width Card -->
+        <!-- 1. GESTURE EDGE WIDTH CARD -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -106,18 +72,19 @@
                 android:textSize="13sp"
                 android:textColor="#888888" />
 
-            <!-- Slider: 50 to 200 px -->
+            <!-- Edge Width Slider: 50 to 200 px -->
             <SeekBar
                 android:id="@+id/sb_main"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
+                android:layout_marginTop="16dp"
                 android:layout_marginBottom="6dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_marginBottom="14dp">
 
                 <TextView
                     android:layout_width="0dp"
@@ -134,25 +101,8 @@
                     android:textSize="12sp"
                     android:textColor="#888888" />
             </LinearLayout>
-        </LinearLayout>
 
-        <!-- Quick Presets Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Quick Presets"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp" />
-
+            <!-- Edge Width Presets -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -163,27 +113,27 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
+                    android:layout_marginEnd="4dp"
                     android:text="Stock\n(54 px)"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
 
                 <Button
                     android:id="@+id/btn_preset_default"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
+                    android:layout_marginEnd="4dp"
                     android:text="Default\n(108 px)"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
 
                 <Button
                     android:id="@+id/btn_preset_wide"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
+                    android:layout_marginEnd="4dp"
                     android:text="Wide\n(140 px)"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
 
                 <Button
                     android:id="@+id/btn_preset_max"
@@ -191,25 +141,17 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Max\n(200 px)"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
             </LinearLayout>
-        </LinearLayout>
 
-        <!-- Advanced: Separate Left & Right Edges -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
+            <!-- Separate Left & Right Edges Switch -->
             <Switch
                 android:id="@+id/switch_separate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:text="Separate Left and Right Edges"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -217,7 +159,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:visibility="gone">
 
                 <!-- Left Edge -->
@@ -231,14 +173,14 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Left Edge Width"
-                        android:textSize="15sp" />
+                        android:textSize="14sp" />
 
                     <TextView
                         android:id="@+id/tv_left_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="108 px"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="#0D84FF" />
                 </LinearLayout>
@@ -247,8 +189,8 @@
                     android:id="@+id/sb_left"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginBottom="14dp" />
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="12dp" />
 
                 <!-- Right Edge -->
                 <LinearLayout
@@ -261,14 +203,14 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Right Edge Width"
-                        android:textSize="15sp" />
+                        android:textSize="14sp" />
 
                     <TextView
                         android:id="@+id/tv_right_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="108 px"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="#0D84FF" />
                 </LinearLayout>
@@ -277,12 +219,242 @@
                     android:id="@+id/sb_right"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Information & Reset -->
+        <!-- 2. SWIPE TRIGGER DISTANCE CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Swipe Trigger Distance"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_distance_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="80 px"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="#34C759" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_distance_dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="~29.1 dp (Stock MIUI: 180 px / ~65 dp)"
+                android:textSize="13sp"
+                android:textColor="#888888" />
+
+            <!-- Distance Slider: 30 to 200 px -->
+            <SeekBar
+                android:id="@+id/sb_distance"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="30 px (Short)"
+                    android:textSize="12sp"
+                    android:textColor="#888888" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="200 px (Long)"
+                    android:textSize="12sp"
+                    android:textColor="#888888" />
+            </LinearLayout>
+
+            <!-- Distance Presets -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_dist_short"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Short\n(50 px)"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_dist_default"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Default\n(80 px)"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_dist_medium"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Medium\n(120 px)"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_dist_stock"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Stock\n(180 px)"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 3. SWIPE SPEED SENSITIVITY CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Swipe Speed Sensitivity"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_speed_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.8 px/ms"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF9500" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_speed_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="~800 px/s - Responsive (Stock: >2.0 px/ms)"
+                android:textSize="13sp"
+                android:textColor="#888888" />
+
+            <!-- Speed Slider: 2 to 30 (0.2 to 3.0 px/ms) -->
+            <SeekBar
+                android:id="@+id/sb_speed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0.2 (Gentle)"
+                    android:textSize="12sp"
+                    android:textColor="#888888" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="3.0 (Stock Fast)"
+                    android:textSize="12sp"
+                    android:textColor="#888888" />
+            </LinearLayout>
+
+            <!-- Speed Presets -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_speed_gentle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Gentle\n(0.4)"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_speed_default"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Default\n(0.8)"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_speed_fast"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Fast\n(1.5)"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_speed_stock"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Stock\n(2.5)"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 4. LIVE STATUS & RESET -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -294,7 +466,7 @@
                 android:id="@+id/tv_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="✓ Changes apply live to MIUI Home.\nNo restart or reboot required."
+                android:text="✓ All adjustments apply live to MIUI Home.\nNo restart or reboot required."
                 android:textSize="13sp"
                 android:textColor="#34C759"
                 android:lineSpacingMultiplier="1.2" />
@@ -304,7 +476,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Reset to Default (108 px)" />
+                android:text="Reset All to Defaults" />
         </LinearLayout>
 
     </LinearLayout>

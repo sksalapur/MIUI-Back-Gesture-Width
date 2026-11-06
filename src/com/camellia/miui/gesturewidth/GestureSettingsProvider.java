@@ -16,6 +16,8 @@ public class GestureSettingsProvider extends ContentProvider {
     public static final String KEY_WIDTH = "width";
     public static final String KEY_LEFT = "left";
     public static final String KEY_RIGHT = "right";
+    public static final String KEY_DISTANCE = "distance";
+    public static final String KEY_SPEED = "speed";
 
     private SharedPreferences mPrefs;
 
@@ -40,10 +42,14 @@ public class GestureSettingsProvider extends ContentProvider {
                 res.putInt(KEY_WIDTH, mPrefs.getInt(KEY_WIDTH, GestureWidthSettings.DEFAULT_WIDTH_PX));
                 res.putInt(KEY_LEFT, mPrefs.getInt(KEY_LEFT, -1));
                 res.putInt(KEY_RIGHT, mPrefs.getInt(KEY_RIGHT, -1));
+                res.putInt(KEY_DISTANCE, mPrefs.getInt(KEY_DISTANCE, GestureWidthSettings.DEFAULT_DISTANCE_PX));
+                res.putInt(KEY_SPEED, mPrefs.getInt(KEY_SPEED, GestureWidthSettings.DEFAULT_SPEED_TENTHS));
             } else {
                 res.putInt(KEY_WIDTH, GestureWidthSettings.DEFAULT_WIDTH_PX);
                 res.putInt(KEY_LEFT, -1);
                 res.putInt(KEY_RIGHT, -1);
+                res.putInt(KEY_DISTANCE, GestureWidthSettings.DEFAULT_DISTANCE_PX);
+                res.putInt(KEY_SPEED, GestureWidthSettings.DEFAULT_SPEED_TENTHS);
             }
             return res;
         } else if ("set".equals(method) && extras != null && mPrefs != null) {
@@ -56,6 +62,12 @@ public class GestureSettingsProvider extends ContentProvider {
             }
             if (extras.containsKey(KEY_RIGHT)) {
                 editor.putInt(KEY_RIGHT, extras.getInt(KEY_RIGHT));
+            }
+            if (extras.containsKey(KEY_DISTANCE)) {
+                editor.putInt(KEY_DISTANCE, extras.getInt(KEY_DISTANCE));
+            }
+            if (extras.containsKey(KEY_SPEED)) {
+                editor.putInt(KEY_SPEED, extras.getInt(KEY_SPEED));
             }
             editor.apply();
 
@@ -94,4 +106,3 @@ public class GestureSettingsProvider extends ContentProvider {
         return 0;
     }
 }
-

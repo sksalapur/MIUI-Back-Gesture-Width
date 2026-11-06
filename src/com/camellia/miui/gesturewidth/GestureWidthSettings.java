@@ -26,13 +26,28 @@ public class GestureWidthSettings {
     public static final String SETTING_KEY_LEFT = "miui_back_gesture_width_left";
     public static final String SETTING_KEY_RIGHT = "miui_back_gesture_width_right";
 
-    public static final int DEFAULT_WIDTH_PX = 108; // 2x default (54px -> 108px / ~39.3dp)
+    // Edge width configuration (50 to 200 px)
+    public static final int DEFAULT_WIDTH_PX = 108;
     public static final int MIN_WIDTH_PX = 40;
     public static final int MAX_WIDTH_PX = 250;
+
+    // Swipe distance configuration (30 to 200 px, stock is 180 px)
+    public static final int DEFAULT_DISTANCE_PX = 80;
+    public static final int MIN_DISTANCE_PX = 30;
+    public static final int MAX_DISTANCE_PX = 200;
+    public static final int STOCK_DISTANCE_PX = 180;
+
+    // Swipe speed sensitivity (tenths of px/ms, stock requires >2.0 px/ms effectively 2.5 - 3.0)
+    public static final int DEFAULT_SPEED_TENTHS = 8; // 0.8 px/ms
+    public static final int MIN_SPEED_TENTHS = 2; // 0.2 px/ms
+    public static final int MAX_SPEED_TENTHS = 30; // 3.0 px/ms
+    public static final int STOCK_SPEED_TENTHS = 25; // 2.5 px/ms
 
     private static volatile int sCachedWidth = DEFAULT_WIDTH_PX;
     private static volatile int sCachedLeftWidth = -1;
     private static volatile int sCachedRightWidth = -1;
+    private static volatile int sCachedDistance = DEFAULT_DISTANCE_PX;
+    private static volatile int sCachedSpeedTenths = DEFAULT_SPEED_TENTHS;
     private static volatile int sCachedScreenWidth = 1080;
 
     private static boolean sObserverRegistered = false;
@@ -52,6 +67,14 @@ public class GestureWidthSettings {
         return sCachedWidth;
     }
 
+    public static int getDesiredDistance() {
+        return sCachedDistance;
+    }
+
+    public static float getDesiredSpeed() {
+        return (float) sCachedSpeedTenths / 10.0f;
+    }
+
     public static int getCachedScreenWidth() {
         return sCachedScreenWidth;
     }
@@ -59,6 +82,15 @@ public class GestureWidthSettings {
     public static void setCachedScreenWidth(int width) {
         if (width > 0) {
             sCachedScreenWidth = width;
+        }
+    }
+
+    public static void ensureObserver(Context context) {
+        if (context == null || sObserverRegistered) return;
+        synchronized (sLock) {
+            if (!sObserverRegistered) {
+                registerObserver(context.getApplicationContext());
+            }
         }
     }
 
@@ -133,6 +165,19 @@ public class GestureWidthSettings {
                     if (right > MAX_WIDTH_PX) right = MAX_WIDTH_PX;
                 }
                 sCachedRightWidth = right;
+
+                int distance = bundle.getInt(GestureSettingsProvider.KEY_DISTANCE, DEFAULT_DISTANCE_PX);
+                if (distance < MIN_DISTANCE_PX) distance = MIN_DISTANCE_PX;
+                if (distance > MAX_DISTANCE_PX) distance = MAX_DISTANCE_PX;
+                sCachedDistance = distance;
+
+                int speed = bundle.getInt(GestureSettingsProvider.KEY_SPEED, DEFAULT_SPEED_TENTHS);
+                if (speed < MIN_SPEED_TENTHS) speed = MIN_SPEED_TENTHS;
+                if (speed > MAX_SPEED_TENTHS) speed = MAX_SPEED_TENTHS;
+                sCachedSpeedTenths = speed;
+
+                Log.d(TAG, "Settings loaded: width=" + sCachedWidth + " left=" + sCachedLeftWidth +
+                        " right=" + sCachedRightWidth + " dist=" + sCachedDistance + " speed=" + sCachedSpeedTenths);
                 return;
             }
 
@@ -167,7 +212,7 @@ public class GestureWidthSettings {
                 @Override
                 public void onChange(boolean selfChange, Uri uri) {
                     super.onChange(selfChange, uri);
-                    Log.i(TAG, "Settings change detected for back gesture width: " + uri);
+                    Log.i(TAG, "Settings change detected for back gesture: " + uri);
                     updateFromSettings(context);
                     applyWidthToActiveStubs();
                 }
@@ -186,6 +231,7 @@ public class GestureWidthSettings {
             } catch (Throwable ignored) {}
             sObserverRegistered = true;
             Log.i(TAG, "Successfully registered ContentObserver for gesture width settings");
+            updateFromSettings(context);
         } catch (Throwable t) {
             Log.e(TAG, "Error registering ContentObserver: ", t);
         }
