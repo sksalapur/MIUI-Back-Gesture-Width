@@ -1,0 +1,5 @@
+bin/
+gen/
+*.idsig
+*.pyc
+__pycache__/
