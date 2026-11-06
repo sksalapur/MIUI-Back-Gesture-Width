@@ -17,32 +17,68 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 public class GestureWidthSettings {
     public static final String TAG = "MiuiGestureWidth";
+
+    // Side Back Keys
     public static final String SETTING_KEY = "miui_back_gesture_width";
     public static final String SETTING_KEY_LEFT = "miui_back_gesture_width_left";
     public static final String SETTING_KEY_RIGHT = "miui_back_gesture_width_right";
+    public static final String SETTING_KEY_DISTANCE = "miui_back_gesture_distance";
+    public static final String SETTING_KEY_SPEED = "miui_back_gesture_speed";
 
-    // Edge width configuration (50 to 200 px)
+    // Custom Launcher & Bottom Navigation Gesture Keys
+    public static final String SETTING_KEY_CUSTOM_LAUNCHER = "miui_custom_launcher_gestures";
+    public static final String SETTING_KEY_BOTTOM_REACH = "miui_bottom_reach_height";
+    public static final String SETTING_KEY_BOTTOM_DISTANCE = "miui_bottom_slide_distance";
+    public static final String SETTING_KEY_BOTTOM_SPEED = "miui_bottom_speed_tenths";
+    public static final String SETTING_KEY_BOTTOM_HOLD = "miui_bottom_hold_duration_ms";
+
+    // Side Back Defaults & Ranges
     public static final int DEFAULT_WIDTH_PX = 108;
     public static final int MIN_WIDTH_PX = 40;
     public static final int MAX_WIDTH_PX = 250;
 
-    // Swipe distance configuration (30 to 200 px, stock is 180 px)
     public static final int DEFAULT_DISTANCE_PX = 80;
     public static final int MIN_DISTANCE_PX = 30;
     public static final int MAX_DISTANCE_PX = 200;
     public static final int STOCK_DISTANCE_PX = 180;
 
-    // Swipe speed sensitivity (tenths of px/ms, stock requires >2.0 px/ms effectively 2.5 - 3.0)
     public static final int DEFAULT_SPEED_TENTHS = 8; // 0.8 px/ms
     public static final int MIN_SPEED_TENTHS = 2; // 0.2 px/ms
     public static final int MAX_SPEED_TENTHS = 30; // 3.0 px/ms
     public static final int STOCK_SPEED_TENTHS = 25; // 2.5 px/ms
 
+    // Bottom Gestures Defaults & Ranges
+    public static final boolean DEFAULT_CUSTOM_LAUNCHER = true;
+
+    // Bottom Reach / Trigger Area Height: 30 to 200 px (stock is ~45-54 px)
+    public static final int DEFAULT_BOTTOM_REACH_PX = 65;
+    public static final int MIN_BOTTOM_REACH_PX = 30;
+    public static final int MAX_BOTTOM_REACH_PX = 200;
+    public static final int STOCK_BOTTOM_REACH_PX = 54;
+
+    // Bottom Slide Distance Threshold: 40 to 300 px
+    public static final int DEFAULT_BOTTOM_DISTANCE_PX = 100;
+    public static final int MIN_BOTTOM_DISTANCE_PX = 40;
+    public static final int MAX_BOTTOM_DISTANCE_PX = 300;
+    public static final int STOCK_BOTTOM_DISTANCE_PX = 120;
+
+    // Bottom Speed / Responsiveness: 2 to 30 (0.2 to 3.0 px/ms)
+    public static final int DEFAULT_BOTTOM_SPEED_TENTHS = 8; // 0.8 px/ms
+    public static final int MIN_BOTTOM_SPEED_TENTHS = 2; // 0.2 px/ms
+    public static final int MAX_BOTTOM_SPEED_TENTHS = 30; // 3.0 px/ms
+    public static final int STOCK_BOTTOM_SPEED_TENTHS = 20; // 2.0 px/ms
+
+    // Bottom Slide & Hold Duration: 100 to 600 ms (stock is ~250-300 ms)
+    public static final int DEFAULT_BOTTOM_HOLD_MS = 250;
+    public static final int MIN_BOTTOM_HOLD_MS = 100;
+    public static final int MAX_BOTTOM_HOLD_MS = 600;
+    public static final int STOCK_BOTTOM_HOLD_MS = 300;
+
+    // Cached values
     private static volatile int sCachedWidth = DEFAULT_WIDTH_PX;
     private static volatile int sCachedLeftWidth = -1;
     private static volatile int sCachedRightWidth = -1;
@@ -50,15 +86,20 @@ public class GestureWidthSettings {
     private static volatile int sCachedSpeedTenths = DEFAULT_SPEED_TENTHS;
     private static volatile int sCachedScreenWidth = 1080;
 
+    private static volatile boolean sCachedCustomLauncher = DEFAULT_CUSTOM_LAUNCHER;
+    private static volatile int sCachedBottomReach = DEFAULT_BOTTOM_REACH_PX;
+    private static volatile int sCachedBottomDistance = DEFAULT_BOTTOM_DISTANCE_PX;
+    private static volatile int sCachedBottomSpeedTenths = DEFAULT_BOTTOM_SPEED_TENTHS;
+    private static volatile int sCachedBottomHoldMs = DEFAULT_BOTTOM_HOLD_MS;
+
     private static boolean sObserverRegistered = false;
     private static final List<WeakReference<Object>> sActiveStubs = new ArrayList<WeakReference<Object>>();
+    private static final List<WeakReference<Object>> sActiveNavStubs = new ArrayList<WeakReference<Object>>();
     private static final Object sLock = new Object();
 
+    // Side Back Getters
     public static int getDesiredWidth(Context context, int pos) {
-        if (context != null) {
-            updateFromSettings(context);
-        }
-
+        if (context != null) updateFromSettings(context);
         if (pos == 0 && sCachedLeftWidth > 0) {
             return sCachedLeftWidth;
         } else if (pos == 1 && sCachedRightWidth > 0) {
@@ -80,9 +121,28 @@ public class GestureWidthSettings {
     }
 
     public static void setCachedScreenWidth(int width) {
-        if (width > 0) {
-            sCachedScreenWidth = width;
-        }
+        if (width > 0) sCachedScreenWidth = width;
+    }
+
+    // Bottom / Custom Launcher Getters
+    public static boolean isCustomLauncherGesturesEnabled() {
+        return sCachedCustomLauncher;
+    }
+
+    public static int getDesiredBottomReach() {
+        return sCachedBottomReach;
+    }
+
+    public static int getDesiredBottomDistance() {
+        return sCachedBottomDistance;
+    }
+
+    public static float getDesiredBottomSpeed() {
+        return (float) sCachedBottomSpeedTenths / 10.0f;
+    }
+
+    public static int getDesiredBottomHold() {
+        return sCachedBottomHoldMs;
     }
 
     public static void ensureObserver(Context context) {
@@ -94,9 +154,9 @@ public class GestureWidthSettings {
         }
     }
 
+    // Side Stub Registration
     public static void registerStub(final Object stubView) {
         if (stubView == null) return;
-
         Context context = null;
         try {
             context = (Context) XposedHelpers.getObjectField(stubView, "mContext");
@@ -113,7 +173,6 @@ public class GestureWidthSettings {
             if (!alreadyTracked) {
                 sActiveStubs.add(new WeakReference<Object>(stubView));
             }
-
             if (!sObserverRegistered && context != null) {
                 registerObserver(context.getApplicationContext());
             }
@@ -133,72 +192,104 @@ public class GestureWidthSettings {
         }
     }
 
+    // Bottom NavStub Registration
+    public static void registerNavStub(final Object navStub) {
+        if (navStub == null) return;
+        Context context = null;
+        try {
+            if (navStub instanceof View) {
+                context = ((View) navStub).getContext();
+            }
+        } catch (Throwable ignored) {}
+
+        synchronized (sLock) {
+            boolean alreadyTracked = false;
+            for (WeakReference<Object> ref : sActiveNavStubs) {
+                if (ref.get() == navStub) {
+                    alreadyTracked = true;
+                    break;
+                }
+            }
+            if (!alreadyTracked) {
+                sActiveNavStubs.add(new WeakReference<Object>(navStub));
+            }
+            if (!sObserverRegistered && context != null) {
+                registerObserver(context.getApplicationContext());
+            }
+        }
+    }
+
+    public static void unregisterNavStub(Object navStub) {
+        if (navStub == null) return;
+        synchronized (sLock) {
+            Iterator<WeakReference<Object>> it = sActiveNavStubs.iterator();
+            while (it.hasNext()) {
+                Object obj = it.next().get();
+                if (obj == null || obj == navStub) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    public static void ensureForceFsgNavBar(Context context) {
+        if (context == null || !sCachedCustomLauncher) return;
+        try {
+            ContentResolver cr = context.getContentResolver();
+            int current = Settings.Global.getInt(cr, "force_fsg_nav_bar", 0);
+            if (current != 1) {
+                Settings.Global.putInt(cr, "force_fsg_nav_bar", 1);
+                Log.i(TAG, "Enforced force_fsg_nav_bar = 1 for custom launcher gestures");
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "Error ensuring force_fsg_nav_bar: ", t);
+        }
+    }
+
     public static void updateFromSettings(Context context) {
         if (context == null) return;
         try {
             ContentResolver cr = context.getContentResolver();
-
-            // First check dedicated ContentProvider
             Bundle bundle = null;
             try {
-                bundle = cr.call(GestureSettingsProvider.CONTENT_URI, "get", null, null);
+                bundle = cr.call(GestureSettingsProvider.CONTENT_URI, "getAllSettings", null, null);
             } catch (Throwable t) {
-                Log.d(TAG, "Provider call fallback: " + t.getMessage());
+                Log.w(TAG, "Could not call GestureSettingsProvider: " + t.getMessage());
             }
 
-            if (bundle != null && bundle.containsKey(GestureSettingsProvider.KEY_WIDTH)) {
-                int width = bundle.getInt(GestureSettingsProvider.KEY_WIDTH, DEFAULT_WIDTH_PX);
-                if (width < MIN_WIDTH_PX) width = MIN_WIDTH_PX;
-                if (width > MAX_WIDTH_PX) width = MAX_WIDTH_PX;
-                sCachedWidth = width;
+            if (bundle != null) {
+                sCachedWidth = bundle.getInt(SETTING_KEY, DEFAULT_WIDTH_PX);
+                sCachedLeftWidth = bundle.getInt(SETTING_KEY_LEFT, -1);
+                sCachedRightWidth = bundle.getInt(SETTING_KEY_RIGHT, -1);
+                sCachedDistance = bundle.getInt(SETTING_KEY_DISTANCE, DEFAULT_DISTANCE_PX);
+                sCachedSpeedTenths = bundle.getInt(SETTING_KEY_SPEED, DEFAULT_SPEED_TENTHS);
 
-                int left = bundle.getInt(GestureSettingsProvider.KEY_LEFT, -1);
-                if (left > 0) {
-                    if (left < MIN_WIDTH_PX) left = MIN_WIDTH_PX;
-                    if (left > MAX_WIDTH_PX) left = MAX_WIDTH_PX;
-                }
-                sCachedLeftWidth = left;
+                sCachedCustomLauncher = bundle.getBoolean(SETTING_KEY_CUSTOM_LAUNCHER, DEFAULT_CUSTOM_LAUNCHER);
+                sCachedBottomReach = bundle.getInt(SETTING_KEY_BOTTOM_REACH, DEFAULT_BOTTOM_REACH_PX);
+                sCachedBottomDistance = bundle.getInt(SETTING_KEY_BOTTOM_DISTANCE, DEFAULT_BOTTOM_DISTANCE_PX);
+                sCachedBottomSpeedTenths = bundle.getInt(SETTING_KEY_BOTTOM_SPEED, DEFAULT_BOTTOM_SPEED_TENTHS);
+                sCachedBottomHoldMs = bundle.getInt(SETTING_KEY_BOTTOM_HOLD, DEFAULT_BOTTOM_HOLD_MS);
 
-                int right = bundle.getInt(GestureSettingsProvider.KEY_RIGHT, -1);
-                if (right > 0) {
-                    if (right < MIN_WIDTH_PX) right = MIN_WIDTH_PX;
-                    if (right > MAX_WIDTH_PX) right = MAX_WIDTH_PX;
-                }
-                sCachedRightWidth = right;
-
-                int distance = bundle.getInt(GestureSettingsProvider.KEY_DISTANCE, DEFAULT_DISTANCE_PX);
-                if (distance < MIN_DISTANCE_PX) distance = MIN_DISTANCE_PX;
-                if (distance > MAX_DISTANCE_PX) distance = MAX_DISTANCE_PX;
-                sCachedDistance = distance;
-
-                int speed = bundle.getInt(GestureSettingsProvider.KEY_SPEED, DEFAULT_SPEED_TENTHS);
-                if (speed < MIN_SPEED_TENTHS) speed = MIN_SPEED_TENTHS;
-                if (speed > MAX_SPEED_TENTHS) speed = MAX_SPEED_TENTHS;
-                sCachedSpeedTenths = speed;
-
-                Log.d(TAG, "Settings loaded: width=" + sCachedWidth + " left=" + sCachedLeftWidth +
-                        " right=" + sCachedRightWidth + " dist=" + sCachedDistance + " speed=" + sCachedSpeedTenths);
+                Log.d(TAG, "Loaded settings from Provider: width=" + sCachedWidth + ", left=" + sCachedLeftWidth
+                        + ", right=" + sCachedRightWidth + ", dist=" + sCachedDistance + ", speed=" + sCachedSpeedTenths
+                        + ", customLauncher=" + sCachedCustomLauncher + ", bReach=" + sCachedBottomReach
+                        + ", bDist=" + sCachedBottomDistance + ", bSpeed=" + sCachedBottomSpeedTenths
+                        + ", bHold=" + sCachedBottomHoldMs);
                 return;
             }
 
-            int width = Settings.System.getInt(cr, SETTING_KEY, DEFAULT_WIDTH_PX);
-            if (width < MIN_WIDTH_PX) width = MIN_WIDTH_PX;
-            if (width > MAX_WIDTH_PX) width = MAX_WIDTH_PX;
-            sCachedWidth = width;
+            // Fallback to Settings.System
+            sCachedWidth = Settings.System.getInt(cr, SETTING_KEY, DEFAULT_WIDTH_PX);
+            sCachedLeftWidth = Settings.System.getInt(cr, SETTING_KEY_LEFT, -1);
+            sCachedRightWidth = Settings.System.getInt(cr, SETTING_KEY_RIGHT, -1);
+            sCachedDistance = Settings.System.getInt(cr, SETTING_KEY_DISTANCE, DEFAULT_DISTANCE_PX);
+            sCachedSpeedTenths = Settings.System.getInt(cr, SETTING_KEY_SPEED, DEFAULT_SPEED_TENTHS);
 
-            int left = Settings.System.getInt(cr, SETTING_KEY_LEFT, -1);
-            if (left > 0) {
-                if (left < MIN_WIDTH_PX) left = MIN_WIDTH_PX;
-                if (left > MAX_WIDTH_PX) left = MAX_WIDTH_PX;
-            }
-            sCachedLeftWidth = left;
-
-            int right = Settings.System.getInt(cr, SETTING_KEY_RIGHT, -1);
-            if (right > 0) {
-                if (right < MIN_WIDTH_PX) right = MIN_WIDTH_PX;
-                if (right > MAX_WIDTH_PX) right = MAX_WIDTH_PX;
-            }
-            sCachedRightWidth = right;
+            sCachedCustomLauncher = Settings.System.getInt(cr, SETTING_KEY_CUSTOM_LAUNCHER, DEFAULT_CUSTOM_LAUNCHER ? 1 : 0) != 0;
+            sCachedBottomReach = Settings.System.getInt(cr, SETTING_KEY_BOTTOM_REACH, DEFAULT_BOTTOM_REACH_PX);
+            sCachedBottomDistance = Settings.System.getInt(cr, SETTING_KEY_BOTTOM_DISTANCE, DEFAULT_BOTTOM_DISTANCE_PX);
+            sCachedBottomSpeedTenths = Settings.System.getInt(cr, SETTING_KEY_BOTTOM_SPEED, DEFAULT_BOTTOM_SPEED_TENTHS);
+            sCachedBottomHoldMs = Settings.System.getInt(cr, SETTING_KEY_BOTTOM_HOLD, DEFAULT_BOTTOM_HOLD_MS);
         } catch (Throwable t) {
             Log.e(TAG, "Error reading settings: " + t.getMessage());
         }
@@ -212,9 +303,11 @@ public class GestureWidthSettings {
                 @Override
                 public void onChange(boolean selfChange, Uri uri) {
                     super.onChange(selfChange, uri);
-                    Log.i(TAG, "Settings change detected for back gesture: " + uri);
+                    Log.i(TAG, "Settings change detected: " + uri);
                     updateFromSettings(context);
                     applyWidthToActiveStubs();
+                    applyBottomReachToActiveStubs();
+                    ensureForceFsgNavBar(context);
                 }
             };
 
@@ -224,14 +317,21 @@ public class GestureWidthSettings {
             } catch (Throwable t) {
                 Log.e(TAG, "Error registering provider observer: ", t);
             }
+
+            // Also observe system force_fsg_nav_bar so we maintain it
             try {
-                cr.registerContentObserver(Settings.System.getUriFor(SETTING_KEY), false, observer);
-                cr.registerContentObserver(Settings.System.getUriFor(SETTING_KEY_LEFT), false, observer);
-                cr.registerContentObserver(Settings.System.getUriFor(SETTING_KEY_RIGHT), false, observer);
+                cr.registerContentObserver(Settings.Global.getUriFor("force_fsg_nav_bar"), false, new ContentObserver(handler) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        ensureForceFsgNavBar(context);
+                    }
+                });
             } catch (Throwable ignored) {}
+
             sObserverRegistered = true;
-            Log.i(TAG, "Successfully registered ContentObserver for gesture width settings");
+            Log.i(TAG, "Successfully registered ContentObserver for all gesture settings");
             updateFromSettings(context);
+            ensureForceFsgNavBar(context);
         } catch (Throwable t) {
             Log.e(TAG, "Error registering ContentObserver: ", t);
         }
@@ -286,6 +386,47 @@ public class GestureWidthSettings {
                     stubHandler.post(updateTask);
                 } else {
                     updateTask.run();
+                }
+            }
+        }
+    }
+
+    public static void applyBottomReachToActiveStubs() {
+        synchronized (sLock) {
+            Iterator<WeakReference<Object>> it = sActiveNavStubs.iterator();
+            while (it.hasNext()) {
+                final Object navStub = it.next().get();
+                if (navStub == null) {
+                    it.remove();
+                    continue;
+                }
+
+                if (!(navStub instanceof View)) continue;
+                final View navView = (View) navStub;
+                Handler h = navView.getHandler();
+                Runnable task = new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            int targetReach = getDesiredBottomReach();
+                            WindowManager.LayoutParams lp = (WindowManager.LayoutParams) navView.getLayoutParams();
+                            if (lp != null && lp.height != targetReach) {
+                                lp.height = targetReach;
+                                WindowManager wm = (WindowManager) navView.getContext().getSystemService(Context.WINDOW_SERVICE);
+                                if (wm != null) {
+                                    wm.updateViewLayout(navView, lp);
+                                    Log.i(TAG, "Successfully updated NavStubView height live to " + targetReach + " px");
+                                }
+                            }
+                        } catch (Throwable t) {
+                            Log.e(TAG, "Error in applyBottomReachToActiveStubs: ", t);
+                        }
+                    }
+                };
+                if (h != null) {
+                    h.post(task);
+                } else {
+                    task.run();
                 }
             }
         }
