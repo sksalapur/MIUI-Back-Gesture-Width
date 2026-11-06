@@ -1,14 +1,14 @@
 package com.camellia.miui.gesturewidth;
 
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.PointF;
-import android.os.Handler;
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -18,11 +18,22 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
+import java.lang.reflect.Method;
+
 public class NavStubHook {
     public static final String TAG = GestureWidthSettings.TAG;
 
     private static String sCurrentDefaultHomePkg = null;
     private static long sLastHomeCheckTime = 0;
+
+    // Gesture tracking state
+    private static float sTouchStartX = 0f;
+    private static float sTouchStartY = 0f;
+    private static long sTouchStartTime = 0;
+    private static long sHoldStartTime = 0;
+    private static boolean sHoldTriggered = false;
+    private static boolean sIsHoldingRecents = false;
+    private static long sJustTriggeredRecentsTime = 0;
 
     /**
      * Checks if a third-party launcher (like DAP launcher) is active as default.
@@ -47,6 +58,98 @@ public class NavStubHook {
             Log.e(TAG, "Error checking default home: ", t);
         }
         return false;
+    }
+
+    /**
+     * Triggers the Recents overview action via system key injection and status bar IPC.
+     */
+    public static void triggerRecents(Object navStubObj, Context context) {
+        long now = SystemClock.uptimeMillis();
+        if (now - sJustTriggeredRecentsTime < 500) {
+            Log.d(TAG, "triggerRecents debounced (already triggered " + (now - sJustTriggeredRecentsTime) + "ms ago)");
+            return;
+        }
+        sJustTriggeredRecentsTime = now;
+        Log.i(TAG, ">>> Triggering Recents gesture action! <<<");
+
+        boolean injected = false;
+        if (navStubObj != null) {
+            try {
+                XposedHelpers.callMethod(navStubObj, "sendEvent", 0, 0, KeyEvent.KEYCODE_APP_SWITCH);
+                XposedHelpers.callMethod(navStubObj, "sendEvent", 1, 0, KeyEvent.KEYCODE_APP_SWITCH);
+                injected = true;
+                Log.i(TAG, "Recents injected via NavStubView.sendEvent(KEYCODE_APP_SWITCH)");
+            } catch (Throwable t) {
+                Log.w(TAG, "NavStubView.sendEvent failed: " + t.getMessage());
+            }
+        }
+
+        // Backup method: call IStatusBarService.toggleRecentApps
+        if (!injected && context != null) {
+            try {
+                Class<?> smClass = Class.forName("android.os.ServiceManager");
+                Method getService = smClass.getMethod("getService", String.class);
+                IBinder binder = (IBinder) getService.invoke(null, "statusbar");
+                if (binder != null) {
+                    Class<?> stubClass = Class.forName("com.android.internal.statusbar.IStatusBarService$Stub");
+                    Method asInterface = stubClass.getMethod("asInterface", IBinder.class);
+                    Object statusBarService = asInterface.invoke(null, binder);
+                    if (statusBarService != null) {
+                        XposedHelpers.callMethod(statusBarService, "toggleRecentApps");
+                        Log.i(TAG, "Recents toggled via IStatusBarService.toggleRecentApps");
+                        injected = true;
+                    }
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "Error calling IStatusBarService.toggleRecentApps: ", t);
+            }
+        }
+
+        // Reset NavStubView state so it's fresh for next touch
+        if (navStubObj != null) {
+            try {
+                XposedHelpers.callMethod(navStubObj, "finalization", "toRecents");
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    /**
+     * Performs native MIUI gesture haptic feedback when hold state is engaged.
+     */
+    public static void performHoldHaptic(Object navStubObj) {
+        try {
+            if (navStubObj instanceof View) {
+                Context ctx = ((View) navStubObj).getContext();
+                ClassLoader cl = ctx.getClassLoader();
+                Class<?> hapticCompatClass = XposedHelpers.findClass("com.miui.home.launcher.common.HapticFeedbackCompat", cl);
+                Object haptic = XposedHelpers.callStaticMethod(hapticCompatClass, "getInstance");
+                XposedHelpers.callMethod(haptic, "performEnterRecent", (View) navStubObj);
+                Log.i(TAG, "Played MIUI native performEnterRecent haptic vibration");
+                return;
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Could not call HapticFeedbackCompat: " + t.getMessage());
+        }
+
+        // Fallback to standard view haptic feedback
+        try {
+            if (navStubObj instanceof View) {
+                ((View) navStubObj).performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static class SetKeepHiddenHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                if (GestureWidthSettings.isCustomLauncherGesturesEnabled()) {
+                    param.args[0] = false;
+                }
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
     }
 
     // --- 1. Utilities Hooks (Bypass MIUI default launcher restriction) ---
@@ -109,7 +212,7 @@ public class NavStubHook {
         }
     }
 
-    // --- 3. NavStubView Hooks (Bottom Gestures: Reach, Distance, Speed, Action) ---
+    // --- 3. NavStubView Hooks (Bottom Reach & Window Sizing) ---
     public static class GetHotSpaceHeightHook extends XC_MethodHook {
         @Override
         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -169,11 +272,93 @@ public class NavStubHook {
         }
     }
 
+    // --- 4. Touch Event & Hold Detection Hooks ---
+    public static class NavTouchHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            try {
+                if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+                if (param.args == null || param.args.length == 0 || !(param.args[0] instanceof MotionEvent)) return;
+
+                MotionEvent ev = (MotionEvent) param.args[0];
+                int action = ev.getActionMasked();
+
+                if (action == MotionEvent.ACTION_DOWN) {
+                    sTouchStartX = ev.getRawX();
+                    sTouchStartY = ev.getRawY();
+                    sTouchStartTime = SystemClock.uptimeMillis();
+                    sHoldStartTime = 0;
+                    sHoldTriggered = false;
+                    sIsHoldingRecents = false;
+                } else if (action == MotionEvent.ACTION_MOVE) {
+                    float dy = sTouchStartY - ev.getRawY(); // Upward travel distance
+                    int targetDist = GestureWidthSettings.getDesiredBottomDistance();
+                    int targetHold = GestureWidthSettings.getDesiredBottomHold();
+                    float targetSpeed = GestureWidthSettings.getDesiredBottomSpeed();
+
+                    PointF vel = (PointF) XposedHelpers.getObjectField(param.thisObject, "mVelocityPxPerMs");
+                    float speed = (vel != null) ? (float) Math.hypot(vel.x, vel.y) : 0f;
+
+                    // Drag upward threshold reached (at least min(targetDist, 50px))
+                    if (dy >= Math.min(targetDist, 50.0f)) {
+                        // User has slowed down or paused finger movement
+                        if (speed < (targetSpeed * 0.4f + 0.8f)) {
+                            long now = SystemClock.uptimeMillis();
+                            if (sHoldStartTime == 0) {
+                                sHoldStartTime = now;
+                            } else if (now - sHoldStartTime >= targetHold) {
+                                if (!sHoldTriggered) {
+                                    sHoldTriggered = true;
+                                    sIsHoldingRecents = true;
+                                    performHoldHaptic(param.thisObject);
+                                    Log.i(TAG, "Hold duration reached (" + (now - sHoldStartTime) + "ms >= " + targetHold + "ms). Recents hold armed!");
+                                }
+                            }
+                        } else if (speed >= (targetSpeed * 0.4f + 0.8f)) {
+                            // User is moving fast upward or in a flick: reset hold start
+                            sHoldStartTime = 0;
+                        }
+                    }
+
+                    // If user slides finger all the way back down to bottom, cancel hold
+                    if (dy < 20.0f && sHoldTriggered) {
+                        sHoldTriggered = false;
+                        sIsHoldingRecents = false;
+                        sHoldStartTime = 0;
+                        Log.d(TAG, "User dragged back down, hold cancelled");
+                    }
+                } else if (action == MotionEvent.ACTION_UP) {
+                    if (sHoldTriggered || sIsHoldingRecents) {
+                        Log.i(TAG, "ACTION_UP with Recents hold armed! Triggering Recents overview.");
+                        Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
+                        triggerRecents(param.thisObject, ctx);
+                        sHoldTriggered = false;
+                        sIsHoldingRecents = false;
+                        sHoldStartTime = 0;
+                    }
+                } else if (action == MotionEvent.ACTION_CANCEL) {
+                    sHoldTriggered = false;
+                    sIsHoldingRecents = false;
+                    sHoldStartTime = 0;
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "Error in NavTouchHook: ", t);
+            }
+        }
+    }
+
+    // --- 5. Fast Pull Up Hook (Home flick vs Recents hold) ---
     public static class IsFastPullUpHook extends XC_MethodHook {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             try {
                 if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+
+                // CRITICAL: If user is holding or just triggered Recents, NEVER treat as fast pull up to Home!
+                if (sHoldTriggered || sIsHoldingRecents || (SystemClock.uptimeMillis() - sJustTriggeredRecentsTime < 800)) {
+                    param.setResult(false);
+                    return;
+                }
 
                 int pivotY = XposedHelpers.getIntField(param.thisObject, "mPivotLocY");
                 float followTailY = XposedHelpers.getFloatField(param.thisObject, "mFollowTailY");
@@ -186,12 +371,21 @@ public class NavStubHook {
                 boolean isUpward = (vel != null && vel.y < 0);
                 float speed = (vel != null) ? (float) Math.hypot(vel.x, vel.y) : 0f;
 
-                if (upwardDistance >= targetDistance) {
-                    // Attribute 1: Upward slide distance threshold satisfied
+                // Check 1: Fast upward flick (satisfies velocity sensitivity slider)
+                if (isUpward && upwardDistance >= 30.0f && speed >= targetSpeed) {
                     param.setResult(true);
-                } else if (isUpward && upwardDistance >= 30.0f && speed >= targetSpeed) {
-                    // Attribute 2: Upward flick velocity sensitivity satisfied
+                    return;
+                }
+
+                // Check 2: Upward drag distance satisfied WITH continuing movement (not stationary/holding)
+                if (upwardDistance >= targetDistance && speed >= 0.5f) {
                     param.setResult(true);
+                    return;
+                }
+
+                // If decelerating or stationary, do not trigger fast pull up
+                if (speed < 0.35f) {
+                    param.setResult(false);
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "Error in IsFastPullUpHook: ", t);
@@ -199,11 +393,18 @@ public class NavStubHook {
         }
     }
 
+    // --- 6. FinishAppToHome Hook ---
     public static class FinishAppToHomeHook extends XC_MethodHook {
         @Override
         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
             try {
                 if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+
+                // If Recents was triggered, DO NOT switch to Home!
+                if (SystemClock.uptimeMillis() - sJustTriggeredRecentsTime < 800) {
+                    Log.i(TAG, "Suppressing finishAppToHome because Recents was recently triggered");
+                    return;
+                }
 
                 Context ctx = null;
                 if (param.thisObject instanceof View) {
@@ -213,17 +414,15 @@ public class NavStubHook {
                 if (isCustomLauncherActive(ctx)) {
                     Log.i(TAG, "Custom launcher active (" + sCurrentDefaultHomePkg + "). Triggering HOME backend event.");
 
-                    // Method A: Inject KEYCODE_HOME KeyEvent via NavStubView.sendEvent (simulating home button tap)
-                    boolean injected = false;
+                    // Inject KEYCODE_HOME KeyEvent via NavStubView.sendEvent
                     try {
                         XposedHelpers.callMethod(param.thisObject, "sendEvent", 0, 0, KeyEvent.KEYCODE_HOME);
                         XposedHelpers.callMethod(param.thisObject, "sendEvent", 1, 0, KeyEvent.KEYCODE_HOME);
-                        injected = true;
                     } catch (Throwable t) {
                         Log.w(TAG, "Could not call sendEvent: " + t.getMessage());
                     }
 
-                    // Method B: Send Home Intent directly
+                    // Send Home Intent directly
                     if (ctx != null) {
                         try {
                             Intent homeIntent = new Intent(Intent.ACTION_MAIN);
@@ -241,88 +440,83 @@ public class NavStubHook {
         }
     }
 
-    // --- 4. Hold Duration Hooks for Recents ---
-    public static class IsToAppHoldStateHook extends XC_MethodHook {
-        private static long sHoldStartMs = 0;
-
-        public static void reset() {
-            sHoldStartMs = 0;
-        }
-
+    // --- 7. Recents Action Execution Hooks ---
+    public static class PerformAppToRecentsHook extends XC_MethodHook {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             try {
                 if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
-
-                int targetDist = GestureWidthSettings.getDesiredBottomDistance();
-                float targetSpeed = GestureWidthSettings.getDesiredBottomSpeed();
-                int targetHold = GestureWidthSettings.getDesiredBottomHold();
-
-                float followTailY = XposedHelpers.getFloatField(param.thisObject, "mFollowTailY");
-                int pivotY = XposedHelpers.getIntField(param.thisObject, "mPivotLocY");
-                float upwardDist = followTailY - (float) pivotY;
-
-                PointF vel = (PointF) XposedHelpers.getObjectField(param.thisObject, "mVelocityPxPerMs");
-                float speed = (vel != null) ? (float) Math.hypot(vel.x, vel.y) : 0f;
-
-                // When user dragged up past threshold and slowed down/holding:
-                if (upwardDist >= Math.min(targetDist, 60.0f)) {
-                    if (speed < (targetSpeed * 0.4f + 1.2f)) {
-                        long now = SystemClock.uptimeMillis();
-                        if (sHoldStartMs == 0) {
-                            sHoldStartMs = now;
-                        } else if (now - sHoldStartMs >= targetHold) {
-                            // Hold duration satisfied!
-                            param.setResult(true);
-                            return;
-                        }
-                    } else {
-                        sHoldStartMs = 0;
-                    }
-                } else {
-                    sHoldStartMs = 0;
+                Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
+                if (isCustomLauncherActive(ctx)) {
+                    Log.i(TAG, "performAppToRecents intercepted with custom launcher! Triggering Recents.");
+                    triggerRecents(param.thisObject, ctx);
+                    param.setResult(null); // Return immediately to prevent fallback to performAppToHome!
                 }
             } catch (Throwable t) {
-                Log.e(TAG, "Error in IsToAppHoldStateHook before: ", t);
-            }
-        }
-
-        @Override
-        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-            try {
-                if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
-
-                Boolean res = (Boolean) param.getResult();
-                if (res != null && res) {
-                    int targetHold = GestureWidthSettings.getDesiredBottomHold();
-                    long now = SystemClock.uptimeMillis();
-                    if (sHoldStartMs == 0) {
-                        sHoldStartMs = now;
-                    }
-                    if (now - sHoldStartMs < targetHold) {
-                        // User has not held long enough yet according to custom duration
-                        param.setResult(false);
-                    }
-                }
-            } catch (Throwable t) {
-                Log.e(TAG, "Error in IsToAppHoldStateHook after: ", t);
+                Log.e(TAG, "Error in PerformAppToRecentsHook: ", t);
             }
         }
     }
 
-    public static class NavTouchHook extends XC_MethodHook {
+    public static class PerformHomeToRecentsHook extends XC_MethodHook {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             try {
-                if (param.args != null && param.args.length > 0 && param.args[0] instanceof MotionEvent) {
-                    MotionEvent ev = (MotionEvent) param.args[0];
-                    int action = ev.getActionMasked();
-                    if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                        IsToAppHoldStateHook.reset();
-                    }
+                if (!GestureWidthSettings.isCustomLauncherGesturesEnabled()) return;
+                Context ctx = (param.thisObject instanceof View) ? ((View) param.thisObject).getContext() : null;
+                if (isCustomLauncherActive(ctx)) {
+                    Log.i(TAG, "performHomeToRecents intercepted with custom launcher! Triggering Recents.");
+                    triggerRecents(param.thisObject, ctx);
+                    param.setResult(null);
                 }
             } catch (Throwable t) {
-                // ignore
+                Log.e(TAG, "Error in PerformHomeToRecentsHook: ", t);
+            }
+        }
+    }
+
+    // --- 8. Prevent MIUI from aborting Recents when 3rd party launcher is active ---
+    public static class IsRecentsLoadedHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            if (GestureWidthSettings.isCustomLauncherGesturesEnabled()) {
+                param.setResult(true);
+            }
+        }
+    }
+
+    public static class RemoteAnimStartFailedHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            if (GestureWidthSettings.isCustomLauncherGesturesEnabled()) {
+                param.setResult(false);
+            }
+        }
+    }
+
+    public static class IsRecentsDisabledHook extends XC_MethodHook {
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            if (GestureWidthSettings.isCustomLauncherGesturesEnabled()) {
+                param.setResult(false);
+            }
+        }
+    }
+
+    public static class IsToAppHoldStateHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            if (GestureWidthSettings.isCustomLauncherGesturesEnabled() && (sHoldTriggered || sIsHoldingRecents)) {
+                param.setResult(true);
+            }
+        }
+    }
+
+    public static class IsToHomeHoldStateHook extends XC_MethodHook {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            if (GestureWidthSettings.isCustomLauncherGesturesEnabled() && (sHoldTriggered || sIsHoldingRecents)) {
+                param.setResult(true);
             }
         }
     }

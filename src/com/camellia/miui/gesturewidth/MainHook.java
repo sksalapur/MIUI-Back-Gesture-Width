@@ -98,29 +98,85 @@ public class MainHook implements IXposedHookLoadPackage {
         try {
             Class<?> navStubViewClass = XposedHelpers.findClass("com.miui.home.recents.NavStubView", lpparam.classLoader);
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "getHotSpaceHeight",
-                    new NavStubHook.GetHotSpaceHeightHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "getHotSpaceHeight",
+                        new NavStubHook.GetHotSpaceHeightHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook getHotSpaceHeight failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "getWindowParam", int.class,
-                    new NavStubHook.GetNavWindowParamHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "getWindowParam", int.class,
+                        new NavStubHook.GetNavWindowParamHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook getWindowParam failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "onAttachedToWindow",
-                    new NavStubHook.NavAttachedHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "onAttachedToWindow",
+                        new NavStubHook.NavAttachedHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook onAttachedToWindow failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "onDetachedFromWindow",
-                    new NavStubHook.NavDetachedHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "onDetachedFromWindow",
+                        new NavStubHook.NavDetachedHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook onDetachedFromWindow failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "isFastPullUp",
-                    new NavStubHook.IsFastPullUpHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "setKeepHidden", boolean.class,
+                        new NavStubHook.SetKeepHiddenHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook setKeepHidden failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "finishAppToHome", boolean.class,
-                    new NavStubHook.FinishAppToHomeHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "isFastPullUp",
+                        new NavStubHook.IsFastPullUpHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook isFastPullUp failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "isToAppHoldState",
-                    new NavStubHook.IsToAppHoldStateHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "finishAppToHome", boolean.class,
+                        new NavStubHook.FinishAppToHomeHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook finishAppToHome failed: " + t.getMessage()); }
 
-            XposedHelpers.findAndHookMethod(navStubViewClass, "onTouchEvent", android.view.MotionEvent.class,
-                    new NavStubHook.NavTouchHook());
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "isToAppHoldState",
+                        new NavStubHook.IsToAppHoldStateHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook isToAppHoldState failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "isToHomeHoldState",
+                        new NavStubHook.IsToHomeHoldStateHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook isToHomeHoldState failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "isRecentsLoaded",
+                        new NavStubHook.IsRecentsLoadedHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook isRecentsLoaded failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "isNeedStopBecauseRecentsRemoteAnimStartFailed",
+                        new NavStubHook.RemoteAnimStartFailedHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook isNeedStopBecauseRecentsRemoteAnimStartFailed failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "isRecentsDisabled",
+                        new NavStubHook.IsRecentsDisabledHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook isRecentsDisabled failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "performAppToRecents", boolean.class,
+                        new NavStubHook.PerformAppToRecentsHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook performAppToRecents(boolean) failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "performAppToRecents",
+                        new NavStubHook.PerformAppToRecentsHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook performAppToRecents() failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "performHomeToRecents",
+                        new NavStubHook.PerformHomeToRecentsHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook performHomeToRecents failed: " + t.getMessage()); }
+
+            try {
+                XposedHelpers.findAndHookMethod(navStubViewClass, "onTouchEvent", android.view.MotionEvent.class,
+                        new NavStubHook.NavTouchHook());
+            } catch (Throwable t) { Log.w(TAG, "Hook onTouchEvent failed: " + t.getMessage()); }
 
             Log.i(TAG, "Successfully installed bottom gesture & hold duration hooks on NavStubView");
         } catch (Throwable t) {

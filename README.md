@@ -80,8 +80,9 @@ The module hooks the core gesture components inside `com.miui.home`:
 
 - **Bottom Navigation Overlay (`NavStubView`):**
   - Overrides `getHotSpaceHeight()` and window `lp.height` to adjust the bottom touch reach zone live.
-  - Intercepts `isFastPullUp()` to evaluate custom upward slide distance and flick velocity.
-  - Hooks `isToAppHoldState()` to enforce configurable hold duration before transitioning to Recents overview.
+  - Intercepts `isFastPullUp()` to evaluate custom upward slide distance and flick velocity without false triggers during stationary holds.
+  - Tracks swipe-up-and-hold gestures with native MIUI tactile haptic feedback (`HapticFeedbackCompat.performEnterRecent`) and triggers the Recents overview via `KEYCODE_APP_SWITCH` and `IStatusBarService.toggleRecentApps()`.
+  - Overrides `setKeepHidden`, `isRecentsLoaded`, and `isNeedStopBecauseRecentsRemoteAnimStartFailed` so that swipe-to-Recents works consistently from both within apps and third-party launchers.
   - Hooks `finishAppToHome()`: when a 3rd-party launcher is default, dispatches `KEYCODE_HOME` key events to seamlessly route home.
 
 - **Side Back Overlays (`GestureStubView` & `GesturesBackController`):**
