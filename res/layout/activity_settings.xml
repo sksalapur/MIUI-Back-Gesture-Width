@@ -25,75 +25,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:layout_marginBottom="16dp"
-            android:text="MIUI Full-Screen Gestures &amp; Custom Launcher Enhancer"
+            android:layout_marginBottom="18dp"
+            android:text="@string/app_desc"
             android:textSize="14sp"
             android:textColor="#888888" />
 
-        <!-- 0. CUSTOM LAUNCHER GESTURES SWITCH CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Custom Launcher Gestures"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Keep gestures active with DAP &amp; 3rd-party launchers"
-                        android:textSize="12sp"
-                        android:textColor="#888888" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/sw_custom_launcher"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_custom_launcher_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="&#x2713; Bottom navigation buttons hidden; Full-screen gestures active"
-                android:textSize="12sp"
-                android:textColor="#34C759" />
-        </LinearLayout>
-
-        <!-- SECTION: BOTTOM GESTURES (HOME & RECENTS) -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="BOTTOM GESTURES (HOME &amp; RECENTS)"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:textColor="#0D84FF" />
-
-        <!-- 1. BOTTOM TRIGGER REACH HEIGHT CARD -->
+        <!-- 1. GESTURE EDGE WIDTH CARD -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -112,473 +49,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Bottom Reach Height"
-                    android:textSize="17sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tv_bottom_reach_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="65 px"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#0D84FF" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_bottom_reach_dp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="How far from screen bottom the touch zone activates"
-                android:textSize="13sp"
-                android:textColor="#888888" />
-
-            <!-- Reach Slider: 30 to 180 px -->
-            <SeekBar
-                android:id="@+id/sb_bottom_reach"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="6dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="14dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="30 px (Low)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="180 px (High Reach)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btn_reach_stock"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Stock\n(54 px)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_reach_default"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Default\n(65 px)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_reach_medium"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Reach+\n(90 px)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_reach_max"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Tall\n(130 px)"
-                    android:textSize="11sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 2. HOME SLIDE DISTANCE CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Home Slide Distance"
-                    android:textSize="17sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tv_bottom_dist_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="100 px"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#34C759" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_bottom_dist_dp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Upward swipe distance required to trigger Home"
-                android:textSize="13sp"
-                android:textColor="#888888" />
-
-            <!-- Distance Slider: 40 to 250 px -->
-            <SeekBar
-                android:id="@+id/sb_bottom_dist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="6dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="14dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="40 px (Short)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="250 px (Long)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btn_bdist_short"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Short\n(60 px)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bdist_default"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Default\n(100 px)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bdist_medium"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Medium\n(150 px)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bdist_stock"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Stock\n(180 px)"
-                    android:textSize="11sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 3. BOTTOM SWIPE SPEED SENSITIVITY CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Bottom Speed Sensitivity"
-                    android:textSize="17sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tv_bspeed_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0.8 px/ms"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#FF9500" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_bspeed_desc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Flick speed responsiveness for bottom gesture"
-                android:textSize="13sp"
-                android:textColor="#888888" />
-
-            <!-- Speed Slider: 2 to 30 (0.2 to 3.0 px/ms) -->
-            <SeekBar
-                android:id="@+id/sb_bspeed"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="6dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="14dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="0.2 (Gentle)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="3.0 (Fast)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btn_bspeed_gentle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Gentle\n(0.4)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bspeed_default"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Default\n(0.8)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bspeed_fast"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Fast\n(1.5)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bspeed_stock"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Stock\n(2.0)"
-                    android:textSize="11sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 4. RECENTS HOLD DURATION CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Recents Hold Duration"
-                    android:textSize="17sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tv_bhold_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="250 ms"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#AF52DE" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_bhold_desc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Hold time after sliding up to trigger Recent Apps"
-                android:textSize="13sp"
-                android:textColor="#888888" />
-
-            <!-- Hold Slider: 100 to 600 ms -->
-            <SeekBar
-                android:id="@+id/sb_bhold"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="6dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="14dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="100 ms (Fast)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="600 ms (Long)"
-                    android:textSize="12sp"
-                    android:textColor="#888888" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btn_bhold_quick"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Quick\n(150 ms)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bhold_default"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Default\n(250 ms)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bhold_relaxed"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Relaxed\n(350 ms)"
-                    android:textSize="11sp" />
-
-                <Button
-                    android:id="@+id/btn_bhold_stock"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Stock\n(300 ms)"
-                    android:textSize="11sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- SECTION: SIDE BACK GESTURES -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="SIDE BACK GESTURES"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:textColor="#0D84FF" />
-
-        <!-- 5. GESTURE EDGE WIDTH CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Side Gesture Width"
+                    android:text="Gesture Edge Width"
                     android:textSize="17sp"
                     android:textStyle="bold" />
 
@@ -601,6 +72,7 @@
                 android:textSize="13sp"
                 android:textColor="#888888" />
 
+            <!-- Edge Width Slider: 50 to 200 px -->
             <SeekBar
                 android:id="@+id/sb_main"
                 android:layout_width="match_parent"
@@ -630,6 +102,7 @@
                     android:textColor="#888888" />
             </LinearLayout>
 
+            <!-- Edge Width Presets -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -671,61 +144,43 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="14dp"
-                android:background="#33888888" />
-
-            <LinearLayout
+            <!-- Separate Left & Right Edges Switch -->
+            <Switch
+                android:id="@+id/switch_separate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Separate Left &amp; Right Edges"
-                    android:textSize="14sp" />
-
-                <Switch
-                    android:id="@+id/sw_separate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
+                android:layout_marginTop="16dp"
+                android:text="Separate Left and Right Edges"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:id="@+id/layout_separate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:visibility="gone"
-                android:layout_marginTop="14dp">
+                android:layout_marginTop="12dp"
+                android:visibility="gone">
 
                 <!-- Left Edge -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:orientation="horizontal">
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Left Edge Width"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:textSize="14sp" />
 
                     <TextView
                         android:id="@+id/tv_left_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="108 px"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="#0D84FF" />
                 </LinearLayout>
@@ -735,29 +190,27 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:layout_marginBottom="14dp" />
+                    android:layout_marginBottom="12dp" />
 
                 <!-- Right Edge -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:orientation="horizontal">
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Right Edge Width"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:textSize="14sp" />
 
                     <TextView
                         android:id="@+id/tv_right_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="108 px"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="#0D84FF" />
                 </LinearLayout>
@@ -766,11 +219,12 @@
                     android:id="@+id/sb_right"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 6. SIDE INWARD SWIPE DISTANCE CARD -->
+        <!-- 2. SWIPE TRIGGER DISTANCE CARD -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -789,7 +243,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Back Swipe Distance"
+                    android:text="Swipe Trigger Distance"
                     android:textSize="17sp"
                     android:textStyle="bold" />
 
@@ -808,10 +262,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="~29.1 dp - Inward swipe threshold (Stock: 180 px)"
+                android:text="~29.1 dp (Stock MIUI: 180 px / ~65 dp)"
                 android:textSize="13sp"
                 android:textColor="#888888" />
 
+            <!-- Distance Slider: 30 to 200 px -->
             <SeekBar
                 android:id="@+id/sb_distance"
                 android:layout_width="match_parent"
@@ -841,6 +296,7 @@
                     android:textColor="#888888" />
             </LinearLayout>
 
+            <!-- Distance Presets -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -883,7 +339,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 7. SIDE FLICK SPEED SENSITIVITY CARD -->
+        <!-- 3. SWIPE SPEED SENSITIVITY CARD -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -902,7 +358,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Back Speed Sensitivity"
+                    android:text="Swipe Speed Sensitivity"
                     android:textSize="17sp"
                     android:textStyle="bold" />
 
@@ -925,6 +381,7 @@
                 android:textSize="13sp"
                 android:textColor="#888888" />
 
+            <!-- Speed Slider: 2 to 30 (0.2 to 3.0 px/ms) -->
             <SeekBar
                 android:id="@+id/sb_speed"
                 android:layout_width="match_parent"
@@ -949,11 +406,12 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="3.0 (Fast)"
+                    android:text="3.0 (Stock Fast)"
                     android:textSize="12sp"
                     android:textColor="#888888" />
             </LinearLayout>
 
+            <!-- Speed Presets -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -996,7 +454,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 8. LIVE STATUS & RESET -->
+        <!-- 4. LIVE STATUS & RESET -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -1008,7 +466,7 @@
                 android:id="@+id/tv_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="&#x2713; All side &amp; bottom adjustments apply live.\nNo restart or reboot required."
+                android:text="✓ All adjustments apply live to MIUI Home.\nNo restart or reboot required."
                 android:textSize="13sp"
                 android:textColor="#34C759"
                 android:lineSpacingMultiplier="1.2" />
